@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"
-import { Sidebar } from "@/components/layout/sidebar"
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -13,11 +12,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" dir="ltr" suppressHydrationWarning>
       <body className="antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <div className="flex min-h-screen bg-background text-foreground">
-            <Sidebar />
-            <main className="flex-1 overflow-y-auto">
-              {children}
-            </main>
+          <div className="flex min-h-screen bg-background text-foreground w-full">
+            {/* <main className="flex-1 overflow-y-auto"> */}
+            {children}
+            {/* </main> */}
           </div>
         </ThemeProvider>
       </body>
