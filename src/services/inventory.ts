@@ -1,3 +1,4 @@
+import isArrayHasData from "@/lib/isArrayHasData";
 import { createClient } from "@/utils/supabase/server";
 
 export async function getInventoryData() {
@@ -9,6 +10,7 @@ export async function getInventoryData() {
       barcode,
       cost_price,
       selling_price,
+      category_id,
       categories (name),
       product_stocks (quantity)
     `);
@@ -20,7 +22,13 @@ export async function getInventoryData() {
     id: product.id,
     name: product.name,
     barcode: product.barcode,
-    category: product.categories?.name || "Uncategorized",
+    cost_price: product.cost_price,
+    selling_price: product.selling_price,
+    category_id: product.category_id,
+    category:
+      (isArrayHasData(product.categories)
+        ? product.categories[0].name
+        : null) || "Uncategorized",
     price: product.selling_price,
     stock:
       product.product_stocks?.reduce((acc, curr) => acc + curr.quantity, 0) ||

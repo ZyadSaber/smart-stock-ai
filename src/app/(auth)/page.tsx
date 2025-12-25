@@ -2,13 +2,13 @@
 
 import { useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { login } from "./actions"
+import { Loader2, Box } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Box } from "lucide-react"
-import { toast } from "sonner" // تأكد من تنصيب sonner
+import { login } from "./actions"
 
 export default function LoginPage() {
   const [isPending, startTransition] = useTransition()
@@ -22,7 +22,7 @@ export default function LoginPage() {
         toast.error(result.error)
       } else {
         toast.success("Welcome back! Redirecting...")
-        router.push("/dashboard")
+        router.push(`/${result?.default_page}`)
       }
     })
   }
