@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { PlusCircle } from "lucide-react";
 import { toast } from "sonner"; // لو بتستخدم sonner للـ notifications
 import { useTransition } from "react";
-import { createProductAction } from "@/app/inventory/actions";
+import { createProductAction } from "@/app/(dashboard)/inventory/actions";
 
 export function AddProductDialog({ categories }: { categories: any[] }) {
     const [isPending, startTransition] = useTransition();
