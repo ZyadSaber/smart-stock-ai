@@ -28,7 +28,10 @@ export async function createStockMovementAction(
   }
 
   // Check if source warehouse has enough stock
-  if (validatedFields.data.from_warehouse_id) {
+  if (
+    validatedFields.data.from_warehouse_id &&
+    validatedFields.data.from_warehouse_id !== "none"
+  ) {
     const { data: stock } = await supabase
       .from("product_stocks")
       .select("quantity")
@@ -36,8 +39,17 @@ export async function createStockMovementAction(
       .eq("warehouse_id", validatedFields.data.from_warehouse_id)
       .single();
 
-    if (!stock || stock.quantity < validatedFields.data.quantity) {
-      return { error: "Insufficient stock in source warehouse." };
+    if (!stock) {
+      return {
+        error:
+          "No stock record found for this product in the source warehouse.",
+      };
+    }
+
+    if (stock.quantity < validatedFields.data.quantity) {
+      return {
+        error: `Insufficient stock. Available: ${stock.quantity}, Requested: ${validatedFields.data.quantity}`,
+      };
     }
   }
 
@@ -54,6 +66,95 @@ export async function createStockMovementAction(
   if (error) {
     console.error(error);
     return { error: "Database error: Could not create stock movement." };
+  }
+
+  revalidatePath("/warehouses");
+  revalidatePath("/stock-movements");
+  return { success: true };
+}
+
+export async function updateStockMovementAction(
+  id: string,
+  values: StockMovementFormInput
+) {
+  const supabase = await createClient();
+  const validatedFields = stockMovementSchema.safeParse(values);
+
+  if (!validatedFields.success) {
+    return { error: "Invalid fields provided." };
+  }
+
+  // Get current movement to compare
+  const { data: oldMovement } = await supabase
+    .from("stock_movements")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (!oldMovement) return { error: "Movement not found." };
+
+  // If source warehouse changed or quantity increased, we must check overdraft
+  // We check if (Current Stock + Old Released Quantity) >= New Requested Quantity
+  if (
+    validatedFields.data.from_warehouse_id &&
+    validatedFields.data.from_warehouse_id !== "none"
+  ) {
+    const { data: stock } = await supabase
+      .from("product_stocks")
+      .select("quantity")
+      .eq("product_id", validatedFields.data.product_id)
+      .eq("warehouse_id", validatedFields.data.from_warehouse_id)
+      .single();
+
+    const currentQuantity = stock?.quantity || 0;
+    const oldReleased =
+      oldMovement.from_warehouse_id === validatedFields.data.from_warehouse_id
+        ? oldMovement.quantity
+        : 0;
+
+    if (currentQuantity + oldReleased < validatedFields.data.quantity) {
+      return {
+        error: "Insufficient stock in source warehouse for this update.",
+      };
+    }
+  }
+
+  const { error } = await supabase
+    .from("stock_movements")
+    .update({
+      ...validatedFields.data,
+      from_warehouse_id:
+        validatedFields.data.from_warehouse_id === "none"
+          ? null
+          : validatedFields.data.from_warehouse_id,
+      to_warehouse_id:
+        validatedFields.data.to_warehouse_id === "none"
+          ? null
+          : validatedFields.data.to_warehouse_id,
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error(error);
+    return { error: "Database error: Could not update movement." };
+  }
+
+  revalidatePath("/warehouses");
+  revalidatePath("/stock-movements");
+  return { success: true };
+}
+
+export async function deleteStockMovementAction(id: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("stock_movements")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error(error);
+    return { error: "Database error: Could not delete movement." };
   }
 
   revalidatePath("/warehouses");

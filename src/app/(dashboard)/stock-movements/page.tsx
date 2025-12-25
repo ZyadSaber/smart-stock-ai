@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StockMovementDialog } from "@/components/stock-movements/stock-movement-dialog";
+import { DeleteMovementDialog } from "@/components/stock-movements/delete-movement-dialog";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Package } from "lucide-react";
 import { getStockMovements } from "./actions";
@@ -63,12 +64,13 @@ export default async function StockMovementsPage() {
                                     <TableHead>Quantity</TableHead>
                                     <TableHead>Notes</TableHead>
                                     <TableHead>By</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {movements.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                                             No stock movements recorded yet.
                                         </TableCell>
                                     </TableRow>
@@ -105,6 +107,23 @@ export default async function StockMovementsPage() {
                                             </TableCell>
                                             <TableCell className="text-sm">
                                                 {movement.created_by_user?.full_name || 'Unknown'}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <StockMovementDialog
+                                                        products={products || []}
+                                                        warehouses={warehouses || []}
+                                                        movement={{
+                                                            id: movement.id,
+                                                            product_id: movement.product_id,
+                                                            from_warehouse_id: movement.from_warehouse_id,
+                                                            to_warehouse_id: movement.to_warehouse_id,
+                                                            quantity: movement.quantity,
+                                                            notes: movement.notes
+                                                        }}
+                                                    />
+                                                    <DeleteMovementDialog movementId={movement.id} />
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))

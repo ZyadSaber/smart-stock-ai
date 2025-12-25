@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowRightLeft, Loader2 } from "lucide-react";
+import { ArrowRightLeft, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { useTransition, useState } from "react";
-import { createStockMovementAction } from "@/app/(dashboard)/stock-movements/actions";
+import { useTransition, useState, useEffect } from "react";
+import { createStockMovementAction, updateStockMovementAction } from "@/app/(dashboard)/stock-movements/actions";
 
 interface Product {
     id: string;
@@ -24,64 +24,97 @@ interface Warehouse {
     name: string;
 }
 
+interface StockMovement {
+    id: string;
+    product_id: string;
+    from_warehouse_id: string | null;
+    to_warehouse_id: string | null;
+    quantity: number;
+    notes?: string | null;
+}
+
 interface StockMovementDialogProps {
     products: Product[];
     warehouses: Warehouse[];
+    movement?: StockMovement;
 }
 
-export function StockMovementDialog({ products, warehouses }: StockMovementDialogProps) {
+export function StockMovementDialog({ products, warehouses, movement }: StockMovementDialogProps) {
     const [isPending, startTransition] = useTransition();
     const [open, setOpen] = useState(false);
+
+    const isEditMode = !!movement;
 
     const form = useForm<StockMovementFormInput>({
         resolver: zodResolver(stockMovementSchema),
         defaultValues: {
-            product_id: "",
-            from_warehouse_id: "none",
-            to_warehouse_id: "none",
-            quantity: 1,
-            notes: "",
+            product_id: movement?.product_id || "",
+            from_warehouse_id: movement?.from_warehouse_id || "none",
+            to_warehouse_id: movement?.to_warehouse_id || "none",
+            quantity: movement?.quantity || 1,
+            notes: movement?.notes || "",
         },
     });
 
+    useEffect(() => {
+        if (movement && open) {
+            form.reset({
+                product_id: movement.product_id,
+                from_warehouse_id: movement.from_warehouse_id || "none",
+                to_warehouse_id: movement.to_warehouse_id || "none",
+                quantity: movement.quantity,
+                notes: movement.notes || "",
+            });
+        }
+    }, [movement, open, form]);
+
     async function onSubmit(values: StockMovementFormInput) {
         startTransition(async () => {
-            // Convert "none" strings to undefined for optional fields
             const payload = {
                 ...values,
-                from_warehouse_id: (values.from_warehouse_id === "none" || !values.from_warehouse_id) ? undefined : values.from_warehouse_id,
-                to_warehouse_id: (values.to_warehouse_id === "none" || !values.to_warehouse_id) ? undefined : values.to_warehouse_id,
+                from_warehouse_id: (values.from_warehouse_id === "none" || !values.from_warehouse_id) ? "none" : values.from_warehouse_id,
+                to_warehouse_id: (values.to_warehouse_id === "none" || !values.to_warehouse_id) ? "none" : values.to_warehouse_id,
             };
 
-            const result = await createStockMovementAction(payload);
+            const result = isEditMode && movement
+                ? await updateStockMovementAction(movement.id, payload)
+                : await createStockMovementAction(payload);
 
             if (result.error) {
                 toast.error(result.error);
             } else {
-                toast.success("Stock movement recorded successfully!");
-                form.reset();
+                toast.success(isEditMode ? "Movement updated successfully!" : "Stock movement recorded successfully!");
+                if (!isEditMode) form.reset();
                 setOpen(false);
             }
         });
     }
 
+    const defaultTrigger = isEditMode ? (
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Pencil className="h-4 w-4" />
+        </Button>
+    ) : (
+        <Button className="gap-2">
+            <ArrowRightLeft className="h-4 w-4" /> Transfer Stock
+        </Button>
+    );
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="gap-2">
-                    <ArrowRightLeft className="h-4 w-4" /> Transfer Stock
-                </Button>
+                {defaultTrigger}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Transfer Stock</DialogTitle>
+                    <DialogTitle>{isEditMode ? "Edit Movement" : "Transfer Stock"}</DialogTitle>
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField control={form.control} name="product_id" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Product</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value} disabled={isEditMode}>
                                     <FormControl>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select a product" />
@@ -95,6 +128,7 @@ export function StockMovementDialog({ products, warehouses }: StockMovementDialo
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                {isEditMode && <p className="text-xs text-muted-foreground">Product cannot be changed once recorded.</p>}
                                 <FormMessage />
                             </FormItem>
                         )} />
@@ -174,10 +208,10 @@ export function StockMovementDialog({ products, warehouses }: StockMovementDialo
                             {isPending ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Recording...
+                                    {isEditMode ? "Updating..." : "Recording..."}
                                 </>
                             ) : (
-                                "Record Transfer"
+                                isEditMode ? "Update Movement" : "Record Transfer"
                             )}
                         </Button>
                     </form>
