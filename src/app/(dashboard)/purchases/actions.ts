@@ -164,3 +164,70 @@ export async function deletePurchaseOrderAction(id: string) {
   revalidatePath("/purchases");
   return { success: true };
 }
+
+export async function deletePurchaseOrderItemAction(itemId: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("purchase_order_items")
+    .delete()
+    .eq("id", itemId);
+
+  if (error) {
+    console.error(error);
+    return { error: "Database error: Could not delete purchase order item." };
+  }
+
+  revalidatePath("/purchases");
+  return { success: true };
+}
+
+export async function getPurchaseOrderItems(purchaseId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("purchase_order_items")
+    .select(
+      `
+      id,
+      quantity,
+      unit_price,
+      total_price,
+      products (name, barcode),
+      warehouses (name)
+    `
+    )
+    .eq("purchase_order_id", purchaseId);
+
+  if (error) {
+    console.error(error);
+    return [];
+  }
+
+  return data;
+}
+
+export async function updatePurchaseOrderItemAction(
+  itemId: string,
+  quantity: number,
+  unitPrice: number
+) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("purchase_order_items")
+    .update({
+      quantity,
+      unit_price: unitPrice,
+      total_price: quantity * unitPrice,
+    })
+    .eq("id", itemId);
+
+  if (error) {
+    console.error(error);
+    return { error: "Database error: Could not update item." };
+  }
+
+  revalidatePath("/purchases");
+  return { success: true };
+}

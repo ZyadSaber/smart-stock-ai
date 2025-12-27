@@ -1,16 +1,8 @@
 import { createClient } from "@/utils/supabase/server";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PurchaseOrderDialog } from "@/components/purchases/purchase-order-dialog";
-import { Badge } from "@/components/ui/badge";
 import { getPurchaseOrders } from "./actions";
+import { PurchaseHistoryTable } from "@/components/purchases/PurchaseHistoryTable";
 
 export default async function PurchasesPage() {
     const supabase = await createClient();
@@ -81,50 +73,7 @@ export default async function PurchasesPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date & Time</TableHead>
-                                    <TableHead>Supplier</TableHead>
-                                    <TableHead>Total Amount</TableHead>
-                                    <TableHead>Notes</TableHead>
-                                    <TableHead>Created By</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {purchaseOrders.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                                            No purchase orders recorded yet.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    purchaseOrders.map((order: any) => (
-                                        <TableRow key={order.id}>
-                                            <TableCell className="font-mono text-xs">
-                                                {new Date(order.created_at).toLocaleString()}
-                                            </TableCell>
-                                            <TableCell className="font-medium">
-                                                {order.supplier_name}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="secondary">
-                                                    ${parseFloat(order.total_amount).toFixed(2)}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                                                {order.notes || '-'}
-                                            </TableCell>
-                                            <TableCell className="text-sm">
-                                                {order.created_by_user?.full_name || 'Unknown'}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                    <PurchaseHistoryTable initialPurchaseOrders={purchaseOrders} />
                 </CardContent>
             </Card>
         </div>
