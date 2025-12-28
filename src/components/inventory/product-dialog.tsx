@@ -12,27 +12,7 @@ import { toast } from "sonner";
 import { useTransition, useState, useEffect } from "react";
 import { createProductAction, updateProductAction, type ProductFormInput } from "@/app/(dashboard)/inventory/actions";
 
-interface Category {
-    id: string;
-    name: string;
-}
-
-interface Product {
-    id: string;
-    name: string;
-    barcode: string;
-    cost_price: number;
-    selling_price: number;
-    category_id: string;
-}
-
-interface ProductDialogProps {
-    categories: Category[];
-    product?: Product;
-    trigger?: React.ReactNode;
-    open?: boolean;
-    onOpenChange?: (open: boolean) => void;
-}
+import { ProductDialogProps } from "@/types/inventory";
 
 export function ProductDialog({
     categories,

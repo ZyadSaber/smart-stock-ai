@@ -13,22 +13,7 @@ import { ShoppingCart, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useTransition, useState } from "react";
 import { createPurchaseOrderAction } from "@/app/(dashboard)/purchases/actions";
-
-interface Product {
-    id: string;
-    name: string;
-    cost_price: number;
-}
-
-interface Warehouse {
-    id: string;
-    name: string;
-}
-
-interface PurchaseOrderDialogProps {
-    products: Product[];
-    warehouses: Warehouse[];
-}
+import { PurchaseOrderDialogProps } from "@/types/purchases";
 
 export function PurchaseOrderDialog({ products, warehouses }: PurchaseOrderDialogProps) {
     const [isPending, startTransition] = useTransition();

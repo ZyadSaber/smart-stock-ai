@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -22,24 +22,22 @@ interface DeleteProductDialogProps {
 
 export function DeleteProductDialog({ productId, productName }: DeleteProductDialogProps) {
     const [open, setOpen] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
+    const [isPending, startTransition] = useTransition();
 
-    const handleDelete = async () => {
-        setIsDeleting(true);
-        try {
-            const result = await deleteProductAction(productId);
-
-            if (result.error) {
-                toast.error(result.error);
-            } else {
-                toast.success("Product deleted successfully.");
-                setOpen(false);
+    const handleDelete = () => {
+        startTransition(async () => {
+            try {
+                const result = await deleteProductAction(productId);
+                if (result.error) {
+                    toast.error(result.error);
+                } else {
+                    toast.success("Product deleted successfully.");
+                    setOpen(false);
+                }
+            } catch {
+                toast.error("An unexpected error occurred.");
             }
-        } catch {
-            toast.error("An unexpected error occurred.");
-        } finally {
-            setIsDeleting(false);
-        }
+        });
     };
 
     return (
@@ -61,16 +59,16 @@ export function DeleteProductDialog({ productId, productName }: DeleteProductDia
                     <Button
                         variant="outline"
                         onClick={() => setOpen(false)}
-                        disabled={isDeleting}
+                        disabled={isPending}
                     >
                         Cancel
                     </Button>
                     <Button
                         variant="destructive"
                         onClick={handleDelete}
-                        disabled={isDeleting}
+                        disabled={isPending}
                     >
-                        {isDeleting ? "Deleting..." : "Delete"}
+                        {isPending ? "Deleting..." : "Delete"}
                     </Button>
                 </DialogFooter>
             </DialogContent>
