@@ -6,6 +6,7 @@ import {
   purchaseOrderSchema,
   type PurchaseOrderFormInput,
 } from "@/lib/validations/purchase-order";
+import { PurchaseOrder, PurchaseOrderItem } from "@/types/purchases";
 
 export async function createPurchaseOrderAction(
   values: PurchaseOrderFormInput
@@ -78,7 +79,7 @@ export async function createPurchaseOrderAction(
   return { success: true };
 }
 
-export async function getPurchaseOrders() {
+export async function getPurchaseOrders(): Promise<PurchaseOrder[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -100,10 +101,17 @@ export async function getPurchaseOrders() {
     return [];
   }
 
-  return data;
+  return (data as any[]).map((order) => ({
+    ...order,
+    created_by_user: Array.isArray(order.created_by_user)
+      ? order.created_by_user[0]
+      : order.created_by_user,
+  })) as PurchaseOrder[];
 }
 
-export async function getPurchaseOrderDetails(id: string) {
+export async function getPurchaseOrderDetails(
+  id: string
+): Promise<(PurchaseOrder & { items: PurchaseOrderItem[] }) | null> {
   const supabase = await createClient();
 
   const { data: order, error: orderError } = await supabase
@@ -139,11 +147,26 @@ export async function getPurchaseOrderDetails(id: string) {
     )
     .eq("purchase_order_id", id);
 
-  if (itemsError) {
+  if (itemsError || !items) {
     return null;
   }
 
-  return { ...order, items };
+  const typedOrder = {
+    ...order,
+    created_by_user: Array.isArray(order.created_by_user)
+      ? order.created_by_user[0]
+      : order.created_by_user,
+  } as PurchaseOrder;
+
+  const typedItems = (items as any[]).map((item) => ({
+    ...item,
+    products: Array.isArray(item.products) ? item.products[0] : item.products,
+    warehouses: Array.isArray(item.warehouses)
+      ? item.warehouses[0]
+      : item.warehouses,
+  })) as PurchaseOrderItem[];
+
+  return { ...typedOrder, items: typedItems };
 }
 
 export async function deletePurchaseOrderAction(id: string) {
@@ -182,7 +205,9 @@ export async function deletePurchaseOrderItemAction(itemId: string) {
   return { success: true };
 }
 
-export async function getPurchaseOrderItems(purchaseId: string) {
+export async function getPurchaseOrderItems(
+  purchaseId: string
+): Promise<PurchaseOrderItem[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -204,7 +229,13 @@ export async function getPurchaseOrderItems(purchaseId: string) {
     return [];
   }
 
-  return data;
+  return (data as any[]).map((item) => ({
+    ...item,
+    products: Array.isArray(item.products) ? item.products[0] : item.products,
+    warehouses: Array.isArray(item.warehouses)
+      ? item.warehouses[0]
+      : item.warehouses,
+  })) as PurchaseOrderItem[];
 }
 
 export async function updatePurchaseOrderItemAction(

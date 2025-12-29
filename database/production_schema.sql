@@ -80,6 +80,8 @@ CREATE TABLE product_stocks (
 -- Sales
 CREATE TABLE sales (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  customer_name TEXT,
+  notes TEXT,
   total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
   profit_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

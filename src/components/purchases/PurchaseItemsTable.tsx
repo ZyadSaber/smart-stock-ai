@@ -23,9 +23,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PurchaseOrderItem } from "@/types/purchases";
 
 interface PurchaseItemsTableProps {
-    items: any[];
+    items: PurchaseOrderItem[];
 }
 
 export function PurchaseItemsTable({ items }: PurchaseItemsTableProps) {
@@ -33,12 +34,12 @@ export function PurchaseItemsTable({ items }: PurchaseItemsTableProps) {
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     // Edit State
-    const [editingItem, setEditingItem] = useState<any | null>(null);
+    const [editingItem, setEditingItem] = useState<PurchaseOrderItem | null>(null);
     const [editQty, setEditQty] = useState(0);
     const [editPrice, setEditPrice] = useState(0);
     const [isSaving, startSaveTransition] = useTransition();
 
-    const handleEditClick = (item: any) => {
+    const handleEditClick = (item: PurchaseOrderItem) => {
         setEditingItem(item);
         setEditQty(item.quantity);
         setEditPrice(item.unit_price);
