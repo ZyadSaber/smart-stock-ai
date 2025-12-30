@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { SaleOrderDialog } from "@/components/sales/sale-order-dialog";
 import { getSales } from "./actions";
 import { SalesHistoryTable } from "@/components/sales/SalesHistoryTable";
+import { formatEGP } from "@/lib/utils";
 
 export default async function SalesPage() {
     const supabase = await createClient();
@@ -57,7 +58,7 @@ export default async function SalesPage() {
                         <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
+                        <div className="text-2xl font-bold">{formatEGP(totalRevenue)}</div>
                         <p className="text-xs text-muted-foreground">
                             Gross value of all sales
                         </p>
@@ -68,7 +69,7 @@ export default async function SalesPage() {
                         <CardTitle className="text-sm font-medium">Total Profit</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-green-600">${totalProfit.toFixed(2)}</div>
+                        <div className="text-2xl font-bold text-green-600">{formatEGP(totalProfit)}</div>
                         <p className="text-xs text-muted-foreground">
                             Net earnings after costs
                         </p>

@@ -137,3 +137,44 @@ export async function updateStockAction(
   revalidatePath("/warehouses");
   return { success: true };
 }
+
+export async function getAllWarehousesValuation() {
+  const supabase = await createClient();
+
+  // 1. Get all warehouses
+  const { data: warehouses, error: wError } = await supabase
+    .from("warehouses")
+    .select("id, name");
+
+  if (wError || !warehouses) {
+    console.error(wError);
+    return [];
+  }
+
+  // 2. Fetch valuation for each
+  const valuations = await Promise.all(
+    warehouses.map(async (w) => {
+      const { data, error } = await supabase.rpc("get_warehouse_valuation", {
+        w_id: w.id,
+      });
+
+      if (error || !data || data.length === 0) {
+        return {
+          name: w.name,
+          total_cost: 0,
+          total_revenue: 0,
+          projected_profit: 0,
+        };
+      }
+
+      return {
+        name: w.name,
+        total_cost: Number(data[0].total_cost) || 0,
+        total_revenue: Number(data[0].total_revenue) || 0,
+        projected_profit: Number(data[0].projected_profit) || 0,
+      };
+    })
+  );
+
+  return valuations;
+}

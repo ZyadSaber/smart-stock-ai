@@ -205,3 +205,45 @@ export async function getSaleItems(saleId: string): Promise<SaleItem[]> {
       : item.warehouses,
   })) as SaleItem[];
 }
+
+export async function getTopSellingProducts() {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.from("sale_items").select(
+    `
+      quantity,
+      products ( name )
+    `
+  );
+
+  if (error) {
+    console.error(error);
+    return [];
+  }
+
+  // Aggregate quantity by product name
+  const productStats: Record<string, number> = {};
+
+  const items = data as unknown as {
+    quantity: number;
+    products: { name: string } | { name: string }[] | null;
+  }[];
+
+  items.forEach((item) => {
+    // Handle potential array or null returns from join
+    const productName = Array.isArray(item.products)
+      ? item.products[0]?.name
+      : item.products?.name;
+
+    if (productName) {
+      productStats[productName] =
+        (productStats[productName] || 0) + item.quantity;
+    }
+  });
+
+  // Convert to array and sort by quantity descending
+  return Object.entries(productStats)
+    .map(([name, quantity]) => ({ name, quantity }))
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, 5); // Return top 5
+}

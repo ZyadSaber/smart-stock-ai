@@ -16,7 +16,7 @@ import { deletePurchaseOrderAction, getPurchaseOrderItems } from "@/app/(dashboa
 import { toast } from "sonner";
 import { PurchaseItemsTable } from "./PurchaseItemsTable";
 
-import { cn } from "@/lib/utils";
+import { cn, formatEGP } from "@/lib/utils";
 import { PurchaseOrder, PurchaseOrderItem } from "@/types/purchases";
 
 interface PurchaseHistoryTableProps {
@@ -111,7 +111,7 @@ export function PurchaseHistoryTable({ initialPurchaseOrders }: PurchaseHistoryT
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant="secondary">
-                                            ${parseFloat(order.total_amount).toFixed(2)}
+                                            {formatEGP(parseFloat(order.total_amount))}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground max-w-xs truncate">

@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PurchaseOrderItem } from "@/types/purchases";
+import { formatEGP } from "@/lib/utils";
 
 interface PurchaseItemsTableProps {
     items: PurchaseOrderItem[];
@@ -100,9 +101,9 @@ export function PurchaseItemsTable({ items }: PurchaseItemsTableProps) {
                             </TableCell>
                             <TableCell>{item.warehouses?.name}</TableCell>
                             <TableCell>{item.quantity}</TableCell>
-                            <TableCell>${item.unit_price}</TableCell>
+                            <TableCell>{formatEGP(item.unit_price)}</TableCell>
                             <TableCell>
-                                <Badge variant="outline">${item.total_price}</Badge>
+                                <Badge variant="outline">{formatEGP(item.total_price)}</Badge>
                             </TableCell>
                             <TableCell className="flex gap-1">
                                 <Button

@@ -188,3 +188,76 @@ export async function getStockMovements() {
 
   return data;
 }
+
+export async function getStockFlowData() {
+  const supabase = await createClient();
+
+  // 1. Get Inbound Flow (Purchases)
+  const { data: inboundData, error: inError } = await supabase.from(
+    "purchase_order_items"
+  ).select(`
+      quantity,
+      purchase_orders!inner ( created_at )
+    `);
+
+  if (inError) {
+    console.error(inError);
+    return [];
+  }
+
+  // 2. Get Outbound Flow (Sales)
+  const { data: outboundData, error: outError } = await supabase.from(
+    "sale_items"
+  ).select(`
+      quantity,
+      sales!inner ( created_at )
+    `);
+
+  if (outError) {
+    console.error(outError);
+    return [];
+  }
+
+  // 3. Aggregate by Date
+  const flowMap: Record<
+    string,
+    { date: string; inbound: number; outbound: number }
+  > = {};
+
+  interface InboundRaw {
+    quantity: number;
+    purchase_orders: { created_at: string } | { created_at: string }[];
+  }
+
+  interface OutboundRaw {
+    quantity: number;
+    sales: { created_at: string } | { created_at: string }[];
+  }
+
+  // Process Inbound
+  (inboundData as unknown as InboundRaw[]).forEach((item) => {
+    const createdObj = Array.isArray(item.purchase_orders)
+      ? item.purchase_orders[0]
+      : item.purchase_orders;
+    if (createdObj) {
+      const date = new Date(createdObj.created_at).toLocaleDateString("en-CA");
+      if (!flowMap[date]) flowMap[date] = { date, inbound: 0, outbound: 0 };
+      flowMap[date].inbound += item.quantity;
+    }
+  });
+
+  // Process Outbound
+  (outboundData as unknown as OutboundRaw[]).forEach((item) => {
+    const createdObj = Array.isArray(item.sales) ? item.sales[0] : item.sales;
+    if (createdObj) {
+      const date = new Date(createdObj.created_at).toLocaleDateString("en-CA");
+      if (!flowMap[date]) flowMap[date] = { date, inbound: 0, outbound: 0 };
+      flowMap[date].outbound += item.quantity;
+    }
+  });
+
+  // Sort by date
+  return Object.values(flowMap).sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+}

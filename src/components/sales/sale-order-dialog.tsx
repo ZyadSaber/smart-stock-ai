@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useTransition, useState } from "react";
 import { createSaleAction } from "@/app/(dashboard)/sales/actions";
 import { SaleOrderDialogProps } from "@/types/sales";
+import { formatEGP } from "@/lib/utils";
 
 export function SaleOrderDialog({ products, warehouses }: SaleOrderDialogProps) {
     const [isPending, startTransition] = useTransition();
@@ -207,7 +208,7 @@ export function SaleOrderDialog({ products, warehouses }: SaleOrderDialogProps) 
                                     </div>
 
                                     <div className="text-sm font-medium text-right">
-                                        Subtotal: ${((watchItems[index]?.quantity || 0) * (watchItems[index]?.unit_price || 0)).toFixed(2)}
+                                        Subtotal: {formatEGP((watchItems[index]?.quantity || 0) * (watchItems[index]?.unit_price || 0))}
                                     </div>
                                 </div>
                             ))}
@@ -225,7 +226,7 @@ export function SaleOrderDialog({ products, warehouses }: SaleOrderDialogProps) 
 
                         <div className="flex items-center justify-between pt-4 border-t sticky bottom-0 bg-background pb-2 mt-4">
                             <div className="text-xl font-bold">
-                                Total: ${totalAmount.toFixed(2)}
+                                Total: {formatEGP(totalAmount)}
                             </div>
                             <Button type="submit" disabled={isPending} className="bg-green-600 hover:bg-green-700">
                                 {isPending ? (

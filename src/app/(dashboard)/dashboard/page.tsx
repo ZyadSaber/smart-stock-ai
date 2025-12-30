@@ -1,32 +1,59 @@
 import { getDashboardStats } from '@/services/dashboard';
+import { getSales, getTopSellingProducts } from "@/app/(dashboard)/sales/actions";
+import { getAllWarehousesValuation } from "@/app/(dashboard)/warehouses/actions";
+import { getStockFlowData } from "@/app/(dashboard)/stock-movements/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SalesProfitChart } from "@/components/dashboard/sales-profit-chart";
+import { WarehouseValuationChart } from "@/components/dashboard/warehouse-valuation-chart";
+import { TopProductsChart } from "@/components/dashboard/top-products-chart";
+import { StockFlowChart } from "@/components/dashboard/stock-flow-chart";
 import { Package, DollarSign, TrendingUp, ArrowUpRight } from "lucide-react";
+import { formatEGP } from '@/lib/utils';
 
 export default async function DashboardPage() {
     const stats = await getDashboardStats();
+    const sales = await getSales();
+    const warehouseValuations = await getAllWarehousesValuation();
+    const topProducts = await getTopSellingProducts();
+    const stockFlow = await getStockFlowData();
 
-    // تنسيق الأرقام محاسبياً
-    const formatCurrency = (amount: number) =>
-        new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP' }).format(amount);
+    // Currency formatting is now handled by formatEGP from utils
 
-    const cards = [
+    const statusBoxes = [
         {
-            title: 'Total Inventory Value',
-            value: formatCurrency(stats.total_cost),
-            icon: Package,
-            description: 'Total cost of current stock',
-            color: 'text-blue-500'
+            title: 'Low Stock Alert',
+            value: stats.low_stock_count,
+            description: 'Items below 5 qty',
+            color: 'bg-red-500/10 text-red-600 border-red-200',
+            icon: Package
         },
         {
-            title: 'Potential Revenue',
-            value: formatCurrency(stats.total_revenue),
+            title: 'Total Stock Value',
+            value: formatEGP(stats.total_cost),
+            description: 'Inventory at cost',
+            color: 'bg-blue-500/10 text-blue-600 border-blue-200',
+            icon: DollarSign
+        },
+        {
+            title: "Today's Profit",
+            value: formatEGP(stats.todays_profit),
+            description: 'Net from today sales',
+            color: 'bg-green-500/10 text-green-600 border-green-200',
+            icon: TrendingUp
+        },
+    ];
+
+    const kpiCards = [
+        {
+            title: 'Inventory Value (Market)',
+            value: formatEGP(stats.total_revenue),
             icon: DollarSign,
             description: 'Estimated market value',
             color: 'text-green-500'
         },
         {
-            title: 'Projected Profit',
-            value: formatCurrency(stats.projected_profit),
+            title: 'Projected Total Profit',
+            value: formatEGP(stats.projected_profit),
             icon: TrendingUp,
             description: 'Expected margin on stock',
             color: 'text-orange-500'
@@ -39,8 +66,25 @@ export default async function DashboardPage() {
                 <h2 className="text-3xl font-bold tracking-tight">Dashboard Overview</h2>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {cards.map((card) => (
+            {/* Status Boxes (Small) */}
+            <div className="grid gap-4 md:grid-cols-3">
+                {statusBoxes.map((box) => (
+                    <div key={box.title} className={`flex items-center p-3 rounded-lg border ${box.color} backdrop-blur-md`}>
+                        <box.icon className="h-5 w-5 mr-3 shrink-0" />
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-wider opacity-80">{box.title}</p>
+                            <div className="flex items-baseline gap-2">
+                                <h3 className="text-xl font-bold">{box.value}</h3>
+                                <span className="text-[10px] opacity-70 whitespace-nowrap">{box.description}</span>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Main KPI Cards */}
+            <div className="grid gap-4 md:grid-cols-2">
+                {kpiCards.map((card) => (
                     <Card key={card.title} className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
@@ -57,14 +101,23 @@ export default async function DashboardPage() {
                 ))}
             </div>
 
-            {/* الجزء القادم: Charts وجدول آخر الحركات */}
+            {/* Charts & Recent Activity */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="lg:col-span-4 h-[300px] flex items-center justify-center text-muted-foreground border-dashed">
-                    Stock Movement Chart (Coming Soon)
-                </Card>
-                <Card className="lg:col-span-3 h-[300px] flex items-center justify-center text-muted-foreground border-dashed">
-                    Recent Transactions (Coming Soon)
-                </Card>
+                <div className="lg:col-span-4">
+                    <SalesProfitChart sales={sales} />
+                </div>
+                <div className="lg:col-span-3">
+                    <WarehouseValuationChart data={warehouseValuations} />
+                </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                <div className="lg:col-span-3">
+                    <TopProductsChart data={topProducts} />
+                </div>
+                <div className="lg:col-span-4">
+                    <StockFlowChart data={stockFlow} />
+                </div>
             </div>
         </div>
     );

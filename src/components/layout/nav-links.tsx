@@ -1,7 +1,7 @@
 "use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Box, Warehouse, ShoppingCart, Users, Settings, ArrowRight, CreditCard } from "lucide-react"
+import { LayoutDashboard, Box, Warehouse, ShoppingCart, Users, ArrowRight, CreditCard } from "lucide-react"
 import isObjectHasData from "@/lib/isObjectHasData"
 
 const menuItems = [
@@ -12,7 +12,6 @@ const menuItems = [
     { name: 'Purchases', icon: CreditCard, href: 'purchases' },
     { name: 'Sales', icon: ShoppingCart, href: 'sales' },
     { name: 'Users', icon: Users, href: 'users' },
-    { name: 'Settings', icon: Settings, href: 'settings' },
 ]
 
 export function NavLinks({ userRole }: { userRole?: Record<string, boolean> }) {

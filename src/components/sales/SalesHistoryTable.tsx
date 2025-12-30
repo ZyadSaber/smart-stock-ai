@@ -15,7 +15,7 @@ import { Fragment, useState, useTransition } from "react";
 import { deleteSaleAction, getSaleItems } from "@/app/(dashboard)/sales/actions";
 import { toast } from "sonner";
 import { SalesItemsTable } from "./SalesItemsTable";
-import { cn } from "@/lib/utils";
+import { cn, formatEGP } from "@/lib/utils";
 import { Sale, SaleItem } from "@/types/sales";
 
 interface SalesHistoryTableProps {
@@ -108,11 +108,11 @@ export function SalesHistoryTable({ initialSales }: SalesHistoryTableProps) {
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant="secondary">
-                                            ${Number(sale.total_amount).toFixed(2)}
+                                            {formatEGP(Number(sale.total_amount))}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-green-600 font-medium whitespace-nowrap">
-                                        ${Number(sale.profit_amount).toFixed(2)}
+                                        {formatEGP(Number(sale.profit_amount))}
                                     </TableCell>
                                     <TableCell className="text-sm">
                                         {sale.profiles?.full_name || 'Unknown'}

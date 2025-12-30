@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { SaleItem } from "@/types/sales";
+import { formatEGP } from "@/lib/utils";
 
 interface SalesItemsTableProps {
     items: SaleItem[];
@@ -41,10 +42,10 @@ export function SalesItemsTable({ items }: SalesItemsTableProps) {
                             </TableCell>
                             <TableCell>{item.warehouses?.name}</TableCell>
                             <TableCell>{item.quantity}</TableCell>
-                            <TableCell>${Number(item.unit_price).toFixed(2)}</TableCell>
+                            <TableCell>{formatEGP(Number(item.unit_price))}</TableCell>
                             <TableCell>
                                 <Badge variant="outline">
-                                    ${(Number(item.quantity) * Number(item.unit_price)).toFixed(2)}
+                                    {formatEGP(Number(item.quantity) * Number(item.unit_price))}
                                 </Badge>
                             </TableCell>
                         </TableRow>

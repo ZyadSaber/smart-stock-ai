@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { ProductDialog } from '@/components/inventory/product-dialog';
 import { DeleteProductDialog } from '@/components/inventory/delete-product-dialog';
 import { InventoryTableProps } from "@/types/inventory";
+import { formatEGP } from "@/lib/utils";
 
 export function InventoryTable({ products, categories }: InventoryTableProps) {
     const [{ searchQuery, category }, setSearchQuery] = useState({
@@ -90,7 +91,7 @@ export function InventoryTable({ products, categories }: InventoryTableProps) {
                                     <TableCell className="font-medium">{item.name}</TableCell>
                                     <TableCell>{item.category}</TableCell>
                                     <TableCell className="font-mono text-xs">{item.barcode}</TableCell>
-                                    <TableCell>${item.price.toLocaleString()}</TableCell>
+                                    <TableCell>{formatEGP(item.price)}</TableCell>
                                     <TableCell>
                                         <Badge variant={item.stock < 10 ? "destructive" : "secondary"}>
                                             {item.stock} units

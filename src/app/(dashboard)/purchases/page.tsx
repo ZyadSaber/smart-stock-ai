@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PurchaseOrderDialog } from "@/components/purchases/purchase-order-dialog";
 import { getPurchaseOrders } from "./actions";
 import { PurchaseHistoryTable } from "@/components/purchases/PurchaseHistoryTable";
+import { formatEGP } from "@/lib/utils";
+import { PurchaseOrder } from "@/types/purchases";
 
 export default async function PurchasesPage() {
     const supabase = await createClient();
@@ -23,7 +25,7 @@ export default async function PurchasesPage() {
 
     // Calculate summary stats
     const totalPurchases = purchaseOrders.length;
-    const totalAmount = purchaseOrders.reduce((sum: number, po: any) => sum + parseFloat(po.total_amount || 0), 0);
+    const totalAmount = purchaseOrders.reduce((sum: number, po: PurchaseOrder) => sum + parseFloat(po.total_amount || '0'), 0);
 
     return (
         <div className="p-8 space-y-6">
@@ -56,7 +58,7 @@ export default async function PurchasesPage() {
                         <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">${totalAmount.toFixed(2)}</div>
+                        <div className="text-2xl font-bold">{formatEGP(totalAmount)}</div>
                         <p className="text-xs text-muted-foreground">
                             Total purchase value
                         </p>
