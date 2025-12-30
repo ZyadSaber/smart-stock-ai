@@ -1,8 +1,7 @@
-import { createClient } from "@/utils/supabase/server"
 import { NavLinks } from "./nav-links"
 import { NavUser } from "./nav-user"
-import { ThemeToggle } from "./theme-toggle"
 import Link from "next/link"
+import { createClient } from "@/utils/supabase/server"
 
 export async function Sidebar() {
     const supabase = await createClient()
@@ -27,10 +26,7 @@ export async function Sidebar() {
                 <NavLinks userRole={data?.permissions || {}} />
             </nav>
 
-            <div className="p-4 border-t space-y-4">
-                <div className="flex items-center justify-between px-2">
-                    <ThemeToggle />
-                </div>
+            <div className="p-4 border-t">
                 <NavUser user={user} />
             </div>
         </aside>
