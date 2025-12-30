@@ -18,6 +18,8 @@ import { SalesItemsTable } from "./SalesItemsTable";
 import { cn, formatEGP } from "@/lib/utils";
 import { Sale, SaleItem } from "@/types/sales";
 
+import { GenerateInvoiceButton } from "./GenerateInvoiceButton";
+
 interface SalesHistoryTableProps {
     initialSales: Sale[];
 }
@@ -72,13 +74,13 @@ export function SalesHistoryTable({ initialSales }: SalesHistoryTableProps) {
                         <TableHead>Total Amount</TableHead>
                         <TableHead>Profit</TableHead>
                         <TableHead>Seller Name</TableHead>
-                        <TableHead className="w-[80px]"></TableHead>
+                        <TableHead className="w-[120px]">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {initialSales.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                            <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                                 No sales recorded yet.
                             </TableCell>
                         </TableRow>
@@ -118,30 +120,33 @@ export function SalesHistoryTable({ initialSales }: SalesHistoryTableProps) {
                                         {sale.profiles?.full_name || 'Unknown'}
                                     </TableCell>
                                     <TableCell>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            disabled={isDeleting && deletingId === sale.id}
-                                            onClick={() => handleDelete(sale.id)}
-                                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                                        >
-                                            {isDeleting && deletingId === sale.id ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <Trash2 className="h-4 w-4" />
-                                            )}
-                                        </Button>
+                                        <div className="flex items-center gap-1">
+                                            <GenerateInvoiceButton saleId={sale.id} showIconOnly />
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                disabled={isDeleting && deletingId === sale.id}
+                                                onClick={() => handleDelete(sale.id)}
+                                                className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                            >
+                                                {isDeleting && deletingId === sale.id ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                                 {expandedRows[sale.id] && (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="p-0 border-b">
+                                        <TableCell colSpan={8} className="p-0 border-b">
                                             {loadingItems[sale.id] ? (
                                                 <div className="flex items-center justify-center p-8">
                                                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                                                 </div>
                                             ) : (
-                                                <SalesItemsTable items={saleItems[sale.id]} />
+                                                <SalesItemsTable items={saleItems[sale.id]} saleId={sale.id} />
                                             )}
                                             {sale.notes && (
                                                 <div className="px-14 py-3 text-sm text-muted-foreground italic border-t bg-muted/10">

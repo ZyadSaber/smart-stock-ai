@@ -247,3 +247,52 @@ export async function getTopSellingProducts() {
     .sort((a, b) => b.quantity - a.quantity)
     .slice(0, 5); // Return top 5
 }
+
+export async function getSaleForInvoice(saleId: string) {
+  const supabase = await createClient();
+
+  const { data: sale, error: saleError } = await supabase
+    .from("sales")
+    .select(
+      `
+      *,
+      profiles:profiles!sales_user_id_fkey (full_name)
+    `
+    )
+    .eq("id", saleId)
+    .single();
+
+  if (saleError || !sale) {
+    console.error(saleError);
+    return null;
+  }
+
+  const { data: items, error: itemsError } = await supabase
+    .from("sale_items")
+    .select(
+      `
+      *,
+      products (name, barcode)
+    `
+    )
+    .eq("sale_id", saleId);
+
+  if (itemsError) {
+    console.error(itemsError);
+    return null;
+  }
+
+  return {
+    ...sale,
+    seller_name:
+      (sale.profiles as unknown as { full_name: string | null })?.full_name ||
+      "System",
+    items: (items as unknown as Record<string, unknown>[]).map((item) => ({
+      ...item,
+      product_name:
+        (item.products as unknown as { name: string })?.name || "Product",
+      barcode: (item.products as unknown as { barcode: string | null })
+        ?.barcode,
+    })),
+  };
+}
