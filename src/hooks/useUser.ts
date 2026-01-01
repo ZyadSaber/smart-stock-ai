@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { UserProfile } from "@/types/user";
 
-export function useUser() {
+export default function useUser() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,5 +30,5 @@ export function useUser() {
     getUser();
   }, []);
 
-  return { user, loading, isAdmin: user?.role === "admin" };
+  return { user, loading };
 }

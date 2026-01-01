@@ -29,22 +29,13 @@ export function UsersTable({ users }: UsersTableProps) {
         setDrawerOpen(true);
     };
 
-    const getRoleBadgeColor = (role: string) => {
-        switch (role) {
-            case 'admin': return 'bg-red-500/10 text-red-600 border-red-200';
-            case 'manager': return 'bg-blue-500/10 text-blue-600 border-blue-200';
-            default: return 'bg-gray-500/10 text-gray-600 border-gray-200';
-        }
-    };
-
     return (
         <div className="rounded-md border bg-card/60 backdrop-blur-sm overflow-hidden">
             <Table>
                 <TableHeader>
                     <TableRow className="bg-muted/50">
                         <TableHead className="w-[300px]">User Account</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Permissions Summary</TableHead>
+                        <TableHead className="w-[600px]">Permissions Summary</TableHead>
                         <TableHead>Last Updated</TableHead>
                         <TableHead className="text-right pr-6">Manage</TableHead>
                     </TableRow>
@@ -72,24 +63,12 @@ export function UsersTable({ users }: UsersTableProps) {
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant="outline" className={`${getRoleBadgeColor(user.role)} px-2.5 py-0.5 capitalize font-medium text-[11px]`}>
-                                        {user.role}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {user.permissions.can_view_reports && (
-                                            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-secondary/50 border-none font-normal">Reports</Badge>
-                                        )}
-                                        {user.permissions.can_edit_inventory && (
-                                            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-secondary/50 border-none font-normal">Inventory</Badge>
-                                        )}
-                                        {user.permissions.can_manage_users && (
-                                            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-secondary/50 border-none font-normal">Users</Badge>
-                                        )}
-                                        {!user.permissions.can_view_reports && !user.permissions.can_edit_inventory && !user.permissions.can_manage_users && (
-                                            <span className="text-[11px] text-muted-foreground italic opacity-60">Standard Access</span>
-                                        )}
+                                    <div className="flex flex-wrap gap-1.5 max-w-[600px]">
+                                        {
+                                            Object.entries(user.permissions).map(([key]) => (
+                                                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-secondary/50 border-none font-normal" key={key}>{key}</Badge>
+                                            ))
+                                        }
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-[11px] text-muted-foreground">

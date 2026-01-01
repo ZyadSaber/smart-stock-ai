@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Notification } from "@/types/notifications";
 import { useRouter } from "next/navigation";
 
-export function useNotificationsRealtime(
+export default function useNotificationsRealtime(
   onNewNotification?: (notification: Notification) => void
 ) {
   const supabase = createClient();

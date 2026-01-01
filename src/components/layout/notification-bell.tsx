@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Notification } from "@/types/notifications";
 import { getNotifications, markAsReadAction, markAllAsReadAction } from "@/app/(dashboard)/notifications/actions";
-import { useNotificationsRealtime } from "@/hooks/use-notifications-realtime";
+import { useNotificationsRealtime } from "@/hooks";
 import { formatDistanceToNow } from "date-fns";
 import { useRouter } from "next/navigation";
 

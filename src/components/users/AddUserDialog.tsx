@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { UserRole } from "@/types/user";
 import { createUserAction } from "@/app/(dashboard)/users/actions";
 import { toast } from "sonner";
 import {
@@ -14,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, UserPlus } from "lucide-react";
 
 export function AddUserDialog() {
@@ -23,7 +21,6 @@ export function AddUserDialog() {
     const [formData, setFormData] = useState({
         email: "",
         full_name: "",
-        role: "cashier" as UserRole,
         password: ""
     });
 
@@ -37,7 +34,7 @@ export function AddUserDialog() {
             } else {
                 toast.success("User created successfully.");
                 setOpen(false);
-                setFormData({ email: "", full_name: "", role: "cashier", password: "" });
+                setFormData({ email: "", full_name: "", password: "" });
             }
         });
     };
@@ -85,22 +82,6 @@ export function AddUserDialog() {
                             value={formData.password}
                             onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
                         />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="role">Role</Label>
-                        <Select
-                            value={formData.role}
-                            onValueChange={(val: UserRole) => setFormData(prev => ({ ...prev, role: val }))}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a role" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="cashier">Cashier</SelectItem>
-                                <SelectItem value="manager">Manager</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                        </Select>
                     </div>
                     <div className="pt-4 flex justify-end gap-3">
                         <Button type="button" variant="outline" onClick={() => setOpen(false)}>

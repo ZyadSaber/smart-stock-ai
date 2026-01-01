@@ -1,16 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updatePermissionsAction, updateRoleAction, deleteUserAction, updatePasswordAction } from "@/app/(dashboard)/users/actions";
-import { UserRole, UserPermissions, UserProfile } from "@/types/user";
+import { updatePermissionsAction, deleteUserAction, updatePasswordAction } from "@/app/(dashboard)/users/actions";
+import { UserPermissions, UserProfile } from "@/types/user";
 import { toast } from "sonner";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { Trash2, AlertTriangle, ShieldCheck, Loader2, KeyRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,14 +25,7 @@ interface EditPermissionsDrawerProps {
 
 export function EditPermissionsDrawer({ user, open, onOpenChange }: EditPermissionsDrawerProps) {
     const [isPending, startTransition] = useTransition();
-    const [permissions, setPermissions] = useState<UserPermissions>(
-        user?.permissions || {
-            can_view_reports: false,
-            can_edit_inventory: false,
-            can_manage_users: false
-        }
-    );
-    const [role, setRole] = useState<UserRole>(user?.role || "cashier");
+    const [permissions, setPermissions] = useState<UserPermissions>(user?.permissions || {});
     const [newPassword, setNewPassword] = useState("");
     const [isDeleting, setIsDeleting] = useState(false);
     const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
@@ -49,12 +35,6 @@ export function EditPermissionsDrawer({ user, open, onOpenChange }: EditPermissi
     const [prevUser, setPrevUser] = useState(user);
     if (user !== prevUser) {
         setPrevUser(user);
-        setRole(user?.role || "cashier");
-        setPermissions(user?.permissions || {
-            can_view_reports: false,
-            can_edit_inventory: false,
-            can_manage_users: false
-        });
         setNewPassword("");
         setShowDeleteConfirm(false);
     }
@@ -70,10 +50,9 @@ export function EditPermissionsDrawer({ user, open, onOpenChange }: EditPermissi
         if (!user) return;
         startTransition(async () => {
             const pResult = await updatePermissionsAction(user.id, permissions);
-            const rResult = await updateRoleAction(user.id, role);
 
-            if (pResult.error || rResult.error) {
-                toast.error(pResult.error || rResult.error);
+            if (pResult.error) {
+                toast.error(pResult.error);
             } else {
                 toast.success("User updated successfully");
                 onOpenChange(false);
@@ -114,7 +93,7 @@ export function EditPermissionsDrawer({ user, open, onOpenChange }: EditPermissi
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent className="sm:max-w-md overflow-y-auto">
-                <SheetHeader className="mb-6">
+                <SheetHeader className="p-3">
                     <SheetTitle className="flex items-center gap-2">
                         <ShieldCheck className="h-5 w-5 text-primary" />
                         Manage User
@@ -124,63 +103,21 @@ export function EditPermissionsDrawer({ user, open, onOpenChange }: EditPermissi
                     </SheetDescription>
                 </SheetHeader>
 
-                <div className="space-y-6 py-4">
-                    <div className="space-y-2 px-1">
-                        <Label className="text-sm font-semibold opacity-70">User Role</Label>
-                        <Select value={role} onValueChange={(val: UserRole) => setRole(val)}>
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select role" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="cashier">Cashier</SelectItem>
-                                <SelectItem value="manager">Manager</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                        </Select>
+                <div className="border-t pt-4">
+                    <h4 className="text-sm font-semibold mb-3 px-1 opacity-70">Navigation Access</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                        {['dashboard', 'inventory', 'warehouses', 'stock-movements', 'purchases', 'sales'].map((item) => (
+                            <div key={item} className="flex items-center gap-2 p-2 rounded border hover:bg-muted/30">
+                                <Switch
+                                    checked={!!permissions[item as keyof UserPermissions]}
+                                    onCheckedChange={() => handleToggle(item as keyof UserPermissions)}
+                                />
+                                <Label className="text-xs capitalize">{item.replace('-', ' ')}</Label>
+                            </div>
+                        ))}
                     </div>
 
-                    <div className="flex items-center justify-between space-x-4 rounded-lg border p-4 shadow-sm transition-colors hover:bg-muted/50">
-                        <div className="space-y-0.5">
-                            <Label className="text-base">View Reports</Label>
-                            <p className="text-sm text-muted-foreground">
-                                Allow viewing dashboard analytics and sales reports.
-                            </p>
-                        </div>
-                        <Switch
-                            checked={permissions.can_view_reports}
-                            onCheckedChange={() => handleToggle('can_view_reports')}
-                        />
-                    </div>
-
-                    <div className="flex items-center justify-between space-x-4 rounded-lg border p-4 shadow-sm transition-colors hover:bg-muted/50">
-                        <div className="space-y-0.5">
-                            <Label className="text-base">User Management</Label>
-                            <p className="text-sm text-muted-foreground">
-                                Allow adding staff and changing permissions.
-                            </p>
-                        </div>
-                        <Switch
-                            checked={permissions.can_manage_users}
-                            onCheckedChange={() => handleToggle('can_manage_users')}
-                        />
-                    </div>
-
-                    <div className="border-t pt-4">
-                        <h4 className="text-sm font-semibold mb-3 px-1 opacity-70">Navigation Access</h4>
-                        <div className="grid grid-cols-2 gap-3">
-                            {['dashboard', 'inventory', 'warehouses', 'stock-movements', 'purchases', 'sales', 'users'].map((item) => (
-                                <div key={item} className="flex items-center gap-2 p-2 rounded border hover:bg-muted/30">
-                                    <Switch
-                                        checked={!!permissions[item as keyof UserPermissions]}
-                                        onCheckedChange={() => handleToggle(item as keyof UserPermissions)}
-                                    />
-                                    <Label className="text-xs capitalize">{item.replace('-', ' ')}</Label>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="border-t pt-4 space-y-4">
+                    <div className="border-t pt-3 mt-4 space-y-4">
                         <div className="flex items-center gap-2 px-1 text-primary">
                             <KeyRound className="h-4 w-4" />
                             <h4 className="text-sm font-semibold">Security Settings</h4>
@@ -211,7 +148,7 @@ export function EditPermissionsDrawer({ user, open, onOpenChange }: EditPermissi
                     </div>
                 </div>
 
-                <div className="mt-8 pt-6 border-t space-y-4">
+                <div className="mt-2 pt-6 border-t space-y-4">
                     <div className="flex gap-3">
                         <Button
                             className="flex-1"

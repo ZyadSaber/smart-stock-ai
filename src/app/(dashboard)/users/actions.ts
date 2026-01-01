@@ -3,17 +3,12 @@
 import { createClient } from "@/utils/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
-import { UserProfile, UserRole, UserPermissions } from "@/types/user";
+import { UserProfile, UserPermissions, Orgazniations } from "@/types/user";
 
 // Admin client using service role key
 const createAdminClient = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  console.log("Admin Client Init:", {
-    hasUrl: !!url,
-    hasServiceKey: !!key,
-  });
 
   if (!url || !key) {
     throw new Error(
@@ -39,11 +34,11 @@ async function ensureAdmin() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("is_super_admin, organization_id")
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "admin") {
+  if (!profile?.is_super_admin) {
     throw new Error("Forbidden: Admin access required");
   }
 }
@@ -68,7 +63,6 @@ export async function getUsers(): Promise<UserProfile[]> {
 export async function createUserAction(formData: {
   email: string;
   full_name: string;
-  role: UserRole;
   password?: string;
 }) {
   try {
@@ -92,19 +86,15 @@ export async function createUserAction(formData: {
     const { error: profileError } = await adminClient.from("profiles").upsert({
       id: authData.user.id,
       full_name: formData.full_name,
-      role: formData.role,
+      is_super_admin: false,
       permissions: {
-        can_view_reports: formData.role !== "cashier",
-        can_edit_inventory:
-          formData.role === "admin" || formData.role === "manager",
-        can_manage_users: formData.role === "admin",
         dashboard: true,
         inventory: true,
         warehouses: true,
         "stock-movements": true,
         purchases: true,
         sales: true,
-        users: formData.role === "admin",
+        users: false,
       },
     });
 
@@ -147,28 +137,6 @@ export async function updatePermissionsAction(
   }
 }
 
-export async function updateRoleAction(userId: string, role: UserRole) {
-  try {
-    await ensureAdmin();
-    const supabase = await createClient();
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({ role })
-      .eq("id", userId);
-
-    if (error) throw error;
-
-    revalidatePath("/users");
-    return { success: true };
-  } catch (error) {
-    console.error("Error updating role:", error);
-    return {
-      error:
-        error instanceof Error ? error.message : "An unknown error occurred",
-    };
-  }
-}
 export async function updatePasswordAction(userId: string, password: string) {
   try {
     await ensureAdmin();
@@ -210,3 +178,113 @@ export async function deleteUserAction(userId: string) {
     };
   }
 }
+
+export async function getOrganizationsWithBranches() {
+  try {
+    await ensureAdmin();
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("organizations")
+      .select(
+        `
+        *,
+        branches (
+          id,
+          name,
+          location,
+          organization_id
+        )
+      `
+      )
+      .order("name");
+
+    if (error) throw error;
+
+    // The result will be an array of organizations,
+    // each containing a 'branches' array.
+    return data as Orgazniations[];
+  } catch (error) {
+    console.error("Error fetching organizations with branches:", error);
+    return [];
+  }
+}
+
+export async function createOrganizationAction(formData: {
+  name: string;
+  active: boolean;
+}) {
+  try {
+    await ensureAdmin();
+    const supabase = await createClient();
+
+    const { error } = await supabase.from("organizations").insert({
+      name: formData.name,
+      active: formData.active,
+    });
+
+    if (error) throw error;
+
+    revalidatePath("/users");
+    return { success: true };
+  } catch (error) {
+    console.error("Error creating organization:", error);
+    return {
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
+    };
+  }
+}
+
+export async function updateOrganizationAction(formData: {
+  id: string;
+  name: string;
+  active: boolean;
+}) {
+  try {
+    await ensureAdmin();
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from("organizations")
+      .update({
+        name: formData.name,
+        active: formData.active,
+      })
+      .eq("id", formData.id);
+
+    if (error) throw error;
+
+    revalidatePath("/users");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating organization:", error);
+    return {
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
+    };
+  }
+}
+
+export const deleteOrganizationAction = async (organizationId: string) => {
+  try {
+    await ensureAdmin();
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from("organizations")
+      .delete()
+      .eq("id", organizationId);
+
+    if (error) throw error;
+
+    revalidatePath("/users");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting organization:", error);
+    return {
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
+    };
+  }
+};
