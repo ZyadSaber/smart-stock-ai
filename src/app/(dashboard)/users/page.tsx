@@ -34,8 +34,6 @@ export default async function UsersPage() {
     const users = await getUsers();
     const orgazniations = await getOrganizationsWithBranches();
 
-    console.log(orgazniations)
-
     return (
         <div className="flex-1 space-y-8 p-8 pt-6">
             <div className="flex items-center justify-between">

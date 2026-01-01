@@ -9,6 +9,8 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Branches } from "@/types/user";
+import { AddBranchDialog } from "./AddBranches";
+import { DeleteBranchDialog } from "./DeleteBranchDialog";
 
 interface BranchesTableProps {
     branches: Branches[];
@@ -28,8 +30,9 @@ export function BranchTable({ branches }: BranchesTableProps) {
                 <TableHeader>
                     <TableRow>
                         <TableHead className="w-[300px]">ID</TableHead>
-                        <TableHead>Branch Name</TableHead>
+                        <TableHead className="w-[600px]">Branch Name</TableHead>
                         <TableHead>Location</TableHead>
+                        <TableHead></TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -38,6 +41,12 @@ export function BranchTable({ branches }: BranchesTableProps) {
                             <TableCell>{item?.id}</TableCell>
                             <TableCell>{item.name}</TableCell>
                             <TableCell>{item.location}</TableCell>
+                            <TableCell>
+                                <div className="flex items-center gap-1">
+                                    <DeleteBranchDialog branch={item} />
+                                    <AddBranchDialog branch={item} organizationId={item.organization_id} />
+                                </div>
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

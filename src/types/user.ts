@@ -29,5 +29,5 @@ export interface Orgazniations {
   created_at: string;
   updated_at: string;
   active: boolean;
-  branches: [];
+  branches: Branches[];
 }

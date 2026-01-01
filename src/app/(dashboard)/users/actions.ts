@@ -288,3 +288,86 @@ export const deleteOrganizationAction = async (organizationId: string) => {
     };
   }
 };
+
+export const createBranchAction = async (formData: {
+  name: string;
+  location: string;
+  organization_id: string;
+}) => {
+  try {
+    await ensureAdmin();
+    const supabase = await createClient();
+
+    const { error } = await supabase.from("branches").insert({
+      name: formData.name,
+      location: formData.location,
+      organization_id: formData.organization_id,
+    });
+
+    if (error) throw error;
+
+    revalidatePath("/users");
+    return { success: true };
+  } catch (error) {
+    console.error("Error creating branch:", error);
+    return {
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
+    };
+  }
+};
+
+export const updateBranchAction = async (formData: {
+  id: string;
+  name: string;
+  location: string;
+  organization_id: string;
+}) => {
+  try {
+    await ensureAdmin();
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from("branches")
+      .update({
+        name: formData.name,
+        location: formData.location,
+        organization_id: formData.organization_id,
+      })
+      .eq("id", formData.id);
+
+    if (error) throw error;
+
+    revalidatePath("/users");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating branch:", error);
+    return {
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
+    };
+  }
+};
+
+export const deleteBranchAction = async (branchId: string) => {
+  try {
+    await ensureAdmin();
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from("branches")
+      .delete()
+      .eq("id", branchId);
+
+    if (error) throw error;
+
+    revalidatePath("/users");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting branch:", error);
+    return {
+      error:
+        error instanceof Error ? error.message : "An unknown error occurred",
+    };
+  }
+};

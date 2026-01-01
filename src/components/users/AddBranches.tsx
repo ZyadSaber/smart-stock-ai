@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { createOrganizationAction, updateOrganizationAction } from "@/app/(dashboard)/users/actions";
+import { createBranchAction, updateBranchAction } from "@/app/(dashboard)/users/actions";
 import { toast } from "sonner";
 import {
     Dialog,
@@ -13,22 +13,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pencil } from "lucide-react"
-import { Loader2, UserPlus } from "lucide-react";
+import { Loader2, Building2 } from "lucide-react";
 import { useVisibility, useFormManager } from "@/hooks";
-import { ORGANIZATION_FORM_INITIAL_DATA } from "./constants";
-import { organizationSchema } from "@/lib/validations/users";
-import { Orgazniations } from "@/types/user";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { BRANCH_FORM_INITIAL_DATA } from "./constants";
+import { branchSchema } from "@/lib/validations/users";
+import { Branches } from "@/types/user";
 
-export function AddOrganizationDialog({ organization }: { organization?: Orgazniations }) {
+export function AddBranchDialog({ organizationId, branch }: { organizationId: string, branch?: Branches }) {
     const { visible, handleStateChange, handleClose } = useVisibility();
     const [isPending, startTransition] = useTransition();
-    const { formData, handleChange, resetForm, validate, errors, handleToggle } = useFormManager({
-        schema: organizationSchema,
+    const { formData, handleChange, resetForm, validate, errors } = useFormManager({
+        schema: branchSchema,
         initialData: {
-            ...ORGANIZATION_FORM_INITIAL_DATA,
-            ...organization
+            ...BRANCH_FORM_INITIAL_DATA,
+            ...branch,
+            organization_id: organizationId,
         }
     })
 
@@ -41,19 +40,19 @@ export function AddOrganizationDialog({ organization }: { organization?: Orgazni
         e.preventDefault();
         if (!validate()) return
         startTransition(async () => {
-            const result = isEditMode ? await updateOrganizationAction(formData as Orgazniations) : await createOrganizationAction(formData);
+            const result = isEditMode ? await updateBranchAction(formData as Branches) : await createBranchAction(formData as Branches);
             if (result.error) {
-                console.error("Failed to " + (isEditMode ? "update" : "create") + " organization:", result.error);
+                console.error("Failed to " + (isEditMode ? "update" : "create") + " branch:", result.error);
                 toast.error(result.error);
             } else {
-                toast.success("Organization " + (isEditMode ? "updated" : "created") + " successfully.");
+                toast.success("Branch " + (isEditMode ? "updated" : "created") + " successfully.");
                 handleClose()
                 resetForm()
             }
         });
     };
 
-    const isEditMode = !!organization;
+    const isEditMode = !!branch;
 
     return (
         <Dialog open={visible} onOpenChange={handleStateChange}>
@@ -65,14 +64,13 @@ export function AddOrganizationDialog({ organization }: { organization?: Orgazni
                 >
                     <Pencil className="h-4 w-4" />
                 </Button> :
-                    <Button className="gap-2">
-                        <UserPlus className="h-4 w-4" />
-                        Add New Organization
+                    <Button className="gap-2" size="icon" variant="ghost">
+                        <Building2 className="h-4 w-4" />
                     </Button>}
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>{isEditMode ? "Edit Organization" : "Add New Organization"}</DialogTitle>
+                    <DialogTitle>{isEditMode ? "Edit Branch" : "Add New Branch"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <Input
@@ -82,12 +80,17 @@ export function AddOrganizationDialog({ organization }: { organization?: Orgazni
                         onChange={handleChange}
                         name="name"
                         error={errors.name}
-                        label="Organization Name"
+                        label="Branch Name"
                     />
-                    <div className="flex items-center space-x-2">
-                        <Switch id="airplane-mode" checked={formData.active} onCheckedChange={handleToggle("active")} />
-                        <Label htmlFor="airplane-mode">Active</Label>
-                    </div>
+                    <Input
+                        id="location"
+                        placeholder="exp. Smart Stock AI"
+                        value={formData.location}
+                        onChange={handleChange}
+                        name="location"
+                        error={errors.location}
+                        label="Loaction"
+                    />
                     <div className="pt-4 flex justify-end gap-3">
                         <Button type="button" variant="outline" onClick={handleCloseModal}>
                             Cancel

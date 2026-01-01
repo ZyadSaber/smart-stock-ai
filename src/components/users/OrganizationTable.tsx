@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { Orgazniations } from "@/types/user";
 import { AddOrganizationDialog } from "./AddOrganizationDialog";
 import { DeleteOrganizationDialog } from "./DeleteOrganization";
+import { AddBranchDialog } from "./AddBranches";
 
 interface OrganizationTableProps {
     orgazniations: Orgazniations[];
@@ -85,6 +86,7 @@ export function OrganizationTable({ orgazniations }: OrganizationTableProps) {
                                         <div className="flex items-center gap-1">
                                             <DeleteOrganizationDialog organization={sale} />
                                             <AddOrganizationDialog organization={sale} />
+                                            <AddBranchDialog organizationId={sale.id} />
                                         </div>
                                     </TableCell>
                                 </TableRow>
