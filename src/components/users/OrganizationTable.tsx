@@ -13,16 +13,16 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, useState } from "react";
 import { BranchTable } from "./BranchTable";
 import { cn } from "@/lib/utils";
-import { Orgazniations } from "@/types/user";
+import { Organizations } from "@/types/user";
 import { AddOrganizationDialog } from "./AddOrganizationDialog";
 import { DeleteOrganizationDialog } from "./DeleteOrganization";
 import { AddBranchDialog } from "./AddBranches";
 
 interface OrganizationTableProps {
-    orgazniations: Orgazniations[];
+    organizations: Organizations[];
 }
 
-export function OrganizationTable({ orgazniations }: OrganizationTableProps) {
+export function OrganizationTable({ organizations }: OrganizationTableProps) {
     const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
 
     const toggleRow = async (saleId: string) => {
@@ -43,14 +43,14 @@ export function OrganizationTable({ orgazniations }: OrganizationTableProps) {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {orgazniations.length === 0 ? (
+                    {organizations.length === 0 ? (
                         <TableRow>
                             <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                                 No sales recorded yet.
                             </TableCell>
                         </TableRow>
                     ) : (
-                        orgazniations.map((sale) => (
+                        organizations.map((sale) => (
                             <Fragment key={sale.id}>
                                 <TableRow className={cn(expandedRows[sale.id] && "bg-muted/50")}>
                                     <TableCell>

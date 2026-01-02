@@ -15,10 +15,10 @@ import { Trash2 } from "lucide-react";
 import { deleteOrganizationAction } from "@/app/(dashboard)/users/actions";
 import { toast } from "sonner";
 import { useVisibility } from "@/hooks";
-import { Orgazniations } from '@/types/user';
+import { Organizations } from '@/types/user';
 
 
-export function DeleteOrganizationDialog({ organization }: { organization: Orgazniations }) {
+export function DeleteOrganizationDialog({ organization }: { organization: Organizations }) {
     const { visible, handleStateChange, handleClose } = useVisibility();
     const [isDeleting, setIsDeleting] = useState(false);
 

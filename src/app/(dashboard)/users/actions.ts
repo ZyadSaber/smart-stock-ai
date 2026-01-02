@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
-import { UserProfile, UserPermissions, Orgazniations } from "@/types/user";
+import { UserProfile, UserPermissions, Organizations } from "@/types/user";
 
 // Admin client using service role key
 const createAdminClient = () => {
@@ -49,7 +49,7 @@ export async function getUsers(): Promise<UserProfile[]> {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("profiles")
-      .select("*")
+      .select("*, organizations(name), branches(name)")
       .order("full_name");
 
     if (error) throw error;
@@ -113,7 +113,15 @@ export async function createUserAction(formData: {
 
 export async function updatePermissionsAction(
   userId: string,
-  permissions: UserPermissions
+  {
+    permissions,
+    organization_id,
+    branch_id,
+  }: {
+    permissions: UserPermissions;
+    organization_id: string;
+    branch_id: string;
+  }
 ) {
   try {
     await ensureAdmin();
@@ -121,7 +129,11 @@ export async function updatePermissionsAction(
 
     const { error } = await supabase
       .from("profiles")
-      .update({ permissions })
+      .update({
+        permissions,
+        organization_id: organization_id || null,
+        branch_id: branch_id || null,
+      })
       .eq("id", userId);
 
     if (error) throw error;
@@ -203,7 +215,7 @@ export async function getOrganizationsWithBranches() {
 
     // The result will be an array of organizations,
     // each containing a 'branches' array.
-    return data as Orgazniations[];
+    return data as Organizations[];
   } catch (error) {
     console.error("Error fetching organizations with branches:", error);
     return [];

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { updatePermissionsAction, deleteUserAction, updatePasswordAction } from "@/app/(dashboard)/users/actions";
-import { UserPermissions, UserProfile } from "@/types/user";
+import { UserPermissions, EditPermissionsDrawerProps } from "@/types/user";
 import { toast } from "sonner";
 import { Trash2, AlertTriangle, ShieldCheck, Loader2, KeyRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -16,45 +16,48 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { SelectField } from "@/components/ui/select";
+import { useFormManager } from "@/hooks";
+import { USER_FORM_INITIAL_DATA } from "./constants";
 
-interface EditPermissionsDrawerProps {
-    user: UserProfile | null;
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-}
 
-export function EditPermissionsDrawer({ user, open, onOpenChange }: EditPermissionsDrawerProps) {
+
+export function EditPermissionsDrawer({ user, open, onOpenChange, organizationsList, branchesList }: EditPermissionsDrawerProps) {
     const [isPending, startTransition] = useTransition();
-    const [permissions, setPermissions] = useState<UserPermissions>(user?.permissions || {});
-    const [newPassword, setNewPassword] = useState("");
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const { formData, handleFieldChange, handleChange } = useFormManager({
+        initialData: {
+            ...USER_FORM_INITIAL_DATA,
+            ...user,
+        }
+    });
 
-    // Correct way to sync state from props in modern React
-    const [prevUser, setPrevUser] = useState(user);
-    if (user !== prevUser) {
-        setPrevUser(user);
-        setNewPassword("");
-        setShowDeleteConfirm(false);
-    }
+    const { permissions, newPassword, isDeleting, isUpdatingPassword, showDeleteConfirm, organization_id, branch_id } = formData;
+
+    const filteredBranches = branchesList.filter(branch => branch.organization_id === organization_id);
 
     const handleToggle = (key: keyof UserPermissions) => {
-        setPermissions(prev => ({
-            ...prev,
-            [key]: !prev[key]
-        }));
+        handleFieldChange({
+            name: "permissions",
+            value: {
+                ...permissions,
+                [key]: !permissions[key]
+            }
+        });
     };
 
     const handleSave = () => {
         if (!user) return;
         startTransition(async () => {
-            const pResult = await updatePermissionsAction(user.id, permissions);
+            const pResult = await updatePermissionsAction(user.id, {
+                permissions,
+                organization_id: organization_id || "",
+                branch_id: branch_id || ""
+            });
 
             if (pResult.error) {
                 toast.error(pResult.error);
             } else {
-                toast.success("User updated successfully");
+                toast.success("User profile and permissions updated successfully");
                 onOpenChange(false);
             }
         });
@@ -62,23 +65,23 @@ export function EditPermissionsDrawer({ user, open, onOpenChange }: EditPermissi
 
     const handleUpdatePassword = async () => {
         if (!user || !newPassword) return;
-        setIsUpdatingPassword(true);
+        handleFieldChange({ name: "isUpdatingPassword", value: true });
         const result = await updatePasswordAction(user.id, newPassword);
-        setIsUpdatingPassword(false);
+        handleFieldChange({ name: "isUpdatingPassword", value: false });
 
         if (result.error) {
             toast.error(result.error);
         } else {
             toast.success("Password updated successfully");
-            setNewPassword("");
+            handleFieldChange({ name: "newPassword", value: "" });
         }
     };
 
     const handleDelete = async () => {
         if (!user) return;
-        setIsDeleting(true);
+        handleFieldChange({ name: "isDeleting", value: true });
         const result = await deleteUserAction(user.id);
-        setIsDeleting(false);
+        handleFieldChange({ name: "isDeleting", value: false });
 
         if (result.error) {
             toast.error(result.error);
@@ -102,6 +105,29 @@ export function EditPermissionsDrawer({ user, open, onOpenChange }: EditPermissi
                         Update role and permissions for <strong>{user.full_name || 'User'}</strong>
                     </SheetDescription>
                 </SheetHeader>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <SelectField
+                        label="Organization"
+                        name="organization_id"
+                        options={organizationsList}
+                        value={organization_id}
+                        onValueChange={(value) => {
+                            handleFieldChange({ name: "organization_id", value });
+                            handleFieldChange({ name: "branch_id", value: "" });
+                        }}
+                        disabled={formData?.is_super_admin}
+                    />
+
+                    <SelectField
+                        label="Branch"
+                        name="branch_id"
+                        options={filteredBranches}
+                        value={branch_id}
+                        onValueChange={(value) => handleFieldChange({ name: "branch_id", value })}
+                        disabled={!organization_id || formData?.is_super_admin}
+                    />
+                </div>
 
                 <div className="border-t pt-4">
                     <h4 className="text-sm font-semibold mb-3 px-1 opacity-70">Navigation Access</h4>
@@ -129,8 +155,9 @@ export function EditPermissionsDrawer({ user, open, onOpenChange }: EditPermissi
                                     type="password"
                                     placeholder="New Password"
                                     className="h-9"
+                                    name="newPassword"
                                     value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    onChange={handleChange}
                                 />
                                 <Button
                                     size="sm"
@@ -171,7 +198,7 @@ export function EditPermissionsDrawer({ user, open, onOpenChange }: EditPermissi
                         <Button
                             variant="ghost"
                             className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => setShowDeleteConfirm(true)}
+                            onClick={() => handleFieldChange({ name: "showDeleteConfirm", value: true })}
                         >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete Account
@@ -199,7 +226,7 @@ export function EditPermissionsDrawer({ user, open, onOpenChange }: EditPermissi
                                     size="sm"
                                     variant="outline"
                                     className="flex-1"
-                                    onClick={() => setShowDeleteConfirm(false)}
+                                    onClick={() => handleFieldChange({ name: "showDeleteConfirm", value: false })}
                                 >
                                     Cancel
                                 </Button>

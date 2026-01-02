@@ -17,11 +17,11 @@ import { Loader2, UserPlus } from "lucide-react";
 import { useVisibility, useFormManager } from "@/hooks";
 import { ORGANIZATION_FORM_INITIAL_DATA } from "./constants";
 import { organizationSchema } from "@/lib/validations/users";
-import { Orgazniations } from "@/types/user";
+import { Organizations } from "@/types/user";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
-export function AddOrganizationDialog({ organization }: { organization?: Orgazniations }) {
+export function AddOrganizationDialog({ organization }: { organization?: Organizations }) {
     const { visible, handleStateChange, handleClose } = useVisibility();
     const [isPending, startTransition] = useTransition();
     const { formData, handleChange, resetForm, validate, errors, handleToggle } = useFormManager({
@@ -41,7 +41,7 @@ export function AddOrganizationDialog({ organization }: { organization?: Orgazni
         e.preventDefault();
         if (!validate()) return
         startTransition(async () => {
-            const result = isEditMode ? await updateOrganizationAction(formData as Orgazniations) : await createOrganizationAction(formData);
+            const result = isEditMode ? await updateOrganizationAction(formData as Organizations) : await createOrganizationAction(formData);
             if (result.error) {
                 console.error("Failed to " + (isEditMode ? "update" : "create") + " organization:", result.error);
                 toast.error(result.error);

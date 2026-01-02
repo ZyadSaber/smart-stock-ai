@@ -3,6 +3,7 @@
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+import { Label } from "@/components/ui/label";
 
 import { cn } from "@/lib/utils"
 
@@ -173,6 +174,38 @@ function SelectScrollDownButton({
     >
       <ChevronDownIcon className="size-4" />
     </SelectPrimitive.ScrollDownButton>
+  )
+}
+
+export const SelectField = ({
+  label,
+  options,
+  value,
+  onValueChange,
+  name,
+  disabled,
+}: {
+  label: string;
+  options: { key: string; label: string }[];
+  value: string;
+  onValueChange: (value: string) => void;
+  name: string;
+  disabled?: boolean;
+}) => {
+  return (
+    <div className="space-y-2 px-1">
+      <Label className="text-sm font-semibold opacity-70">{label}</Label>
+      <Select name={name} value={value} onValueChange={onValueChange} disabled={disabled}>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Select role" />
+        </SelectTrigger>
+        <SelectContent>
+          {options?.map((option, index) => (
+            <SelectItem key={index} value={option.key}>{option.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }
 

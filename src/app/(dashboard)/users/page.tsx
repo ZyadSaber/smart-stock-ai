@@ -20,6 +20,14 @@ export default async function UsersPage() {
         .eq('id', authUser.id)
         .single();
 
+    const { data: organizationsList } = await supabase
+        .from('organizations')
+        .select('key:id, label:name')
+
+    const { data: branchesList } = await supabase
+        .from('branches')
+        .select('key:id, label:name, organization_id')
+
     if (!profile?.is_super_admin) {
         console.warn(`Unauthorized access attempt to Users page by user: ${authUser.id}`);
         return (
@@ -32,7 +40,7 @@ export default async function UsersPage() {
     }
 
     const users = await getUsers();
-    const orgazniations = await getOrganizationsWithBranches();
+    const organizations = await getOrganizationsWithBranches();
 
     return (
         <div className="flex-1 space-y-8 p-8 pt-6">
@@ -56,7 +64,7 @@ export default async function UsersPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <UsersTable users={users} />
+                    <UsersTable organizationsList={organizationsList || []} branchesList={branchesList || []} users={users} />
                 </CardContent>
             </Card>
 
@@ -69,7 +77,7 @@ export default async function UsersPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <OrganizationTable orgazniations={orgazniations} />
+                    <OrganizationTable organizations={organizations} />
                 </CardContent>
             </Card>
         </div>

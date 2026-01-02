@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { UserProfile } from "@/types/user";
+import { UserProfile, UsersTableProps } from "@/types/user";
 import {
     Table,
     TableBody,
@@ -16,11 +16,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { UserCog } from "lucide-react";
 import { EditPermissionsDrawer } from "./EditPermissionsDrawer";
 
-interface UsersTableProps {
-    users: UserProfile[];
-}
 
-export function UsersTable({ users }: UsersTableProps) {
+
+export function UsersTable({ users, organizationsList, branchesList }: UsersTableProps) {
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -34,8 +32,10 @@ export function UsersTable({ users }: UsersTableProps) {
             <Table>
                 <TableHeader>
                     <TableRow className="bg-muted/50">
-                        <TableHead className="w-[300px]">User Account</TableHead>
+                        <TableHead className="w-[200px]">User Account</TableHead>
                         <TableHead className="w-[600px]">Permissions Summary</TableHead>
+                        <TableHead>Organization</TableHead>
+                        <TableHead>Branch</TableHead>
                         <TableHead>Last Updated</TableHead>
                         <TableHead className="text-right pr-6">Manage</TableHead>
                     </TableRow>
@@ -72,6 +72,12 @@ export function UsersTable({ users }: UsersTableProps) {
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-[11px] text-muted-foreground">
+                                    {user.organizations?.name}
+                                </TableCell>
+                                <TableCell className="text-[11px] text-muted-foreground">
+                                    {user.branches?.name}
+                                </TableCell>
+                                <TableCell className="text-[11px] text-muted-foreground">
                                     {new Date(user.updated_at).toLocaleDateString()}
                                 </TableCell>
                                 <TableCell className="text-right pr-6">
@@ -96,6 +102,8 @@ export function UsersTable({ users }: UsersTableProps) {
                 user={selectedUser}
                 open={drawerOpen}
                 onOpenChange={setDrawerOpen}
+                organizationsList={organizationsList}
+                branchesList={branchesList}
             />
         </div>
     );

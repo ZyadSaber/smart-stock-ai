@@ -55,6 +55,16 @@ const useFormManager = <T extends Record<string, unknown>>({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleFieldChange = ({
+    name,
+    value,
+  }: {
+    name: string;
+    value: unknown;
+  }) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   return {
     formData,
     setFormData,
@@ -63,6 +73,7 @@ const useFormManager = <T extends Record<string, unknown>>({
     validate, // Call this before submitting
     errors, // Display these in your UI
     handleToggle,
+    handleFieldChange,
   };
 };
 
