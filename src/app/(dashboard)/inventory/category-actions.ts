@@ -6,8 +6,16 @@ import {
   categorySchema,
   type CategoryFormInput,
 } from "@/lib/validations/category";
+import {
+  getTenantContext,
+  applyOrganizationFilter,
+  getOrganizationDefaults,
+} from "@/lib/tenant";
 
 export async function createCategoryAction(values: CategoryFormInput) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
   const validatedFields = categorySchema.safeParse(values);
@@ -18,7 +26,12 @@ export async function createCategoryAction(values: CategoryFormInput) {
 
   const { error } = await supabase
     .from("categories")
-    .insert([validatedFields.data])
+    .insert([
+      {
+        ...validatedFields.data,
+        ...getOrganizationDefaults(context),
+      },
+    ])
     .select();
 
   if (error) {
@@ -34,6 +47,9 @@ export async function updateCategoryAction(
   id: string,
   values: CategoryFormInput
 ) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
   const validatedFields = categorySchema.safeParse(values);
@@ -42,11 +58,13 @@ export async function updateCategoryAction(
     return { error: "Invalid fields provided." };
   }
 
-  const { error } = await supabase
+  let query = supabase
     .from("categories")
     .update(validatedFields.data)
-    .eq("id", id)
-    .select();
+    .eq("id", id);
+  query = applyOrganizationFilter(query, context);
+
+  const { error } = await query.select();
 
   if (error) {
     console.error(error);
@@ -58,14 +76,21 @@ export async function updateCategoryAction(
 }
 
 export async function deleteCategoryAction(id: string) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
   // First check if category has products
-  const { data: products, error: checkError } = await supabase
+  let checkQuery = supabase
     .from("products")
     .select("id")
     .eq("category_id", id)
     .limit(1);
+
+  checkQuery = applyOrganizationFilter(checkQuery, context);
+
+  const { data: products, error: checkError } = await checkQuery;
 
   if (checkError) {
     console.error(checkError);
@@ -79,7 +104,10 @@ export async function deleteCategoryAction(id: string) {
     };
   }
 
-  const { error } = await supabase.from("categories").delete().eq("id", id);
+  let deleteQuery = supabase.from("categories").delete().eq("id", id);
+  deleteQuery = applyOrganizationFilter(deleteQuery, context);
+
+  const { error } = await deleteQuery;
 
   if (error) {
     console.error(error);

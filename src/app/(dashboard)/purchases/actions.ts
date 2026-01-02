@@ -7,10 +7,19 @@ import {
   type PurchaseOrderFormInput,
 } from "@/lib/validations/purchase-order";
 import { PurchaseOrder, PurchaseOrderItem } from "@/types/purchases";
+import {
+  getTenantContext,
+  getBranchDefaults,
+  applyBranchFilter,
+  applyOrganizationFilter,
+} from "@/lib/tenant";
 
 export async function createPurchaseOrderAction(
   values: PurchaseOrderFormInput
 ) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
   const validatedFields = purchaseOrderSchema.safeParse(values);
@@ -19,14 +28,14 @@ export async function createPurchaseOrderAction(
     return { error: "Invalid fields provided." };
   }
 
-  // Get current user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Get current user - no longer needed, using context.userId
+  // const {
+  //   data: { user },
+  // } = await supabase.auth.getUser();
 
-  if (!user) {
-    return { error: "User not authenticated." };
-  }
+  // if (!user) {
+  //   return { error: "User not authenticated." };
+  // }
 
   // Calculate total amount
   const totalAmount = validatedFields.data.items.reduce(
@@ -42,7 +51,8 @@ export async function createPurchaseOrderAction(
         supplier_name: validatedFields.data.supplier_name,
         notes: validatedFields.data.notes,
         total_amount: totalAmount,
-        created_by: user.id,
+        created_by: context.userId,
+        ...getBranchDefaults(context),
       },
     ])
     .select()
@@ -76,16 +86,18 @@ export async function createPurchaseOrderAction(
 
   revalidatePath("/purchases");
   revalidatePath("/warehouses");
+  revalidatePath("/inventory");
   return { success: true };
 }
 
 export async function getPurchaseOrders(): Promise<PurchaseOrder[]> {
+  const context = await getTenantContext();
+  if (!context) return [];
+
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("purchase_orders")
-    .select(
-      `
+  let query = supabase.from("purchase_orders").select(
+    `
       id,
       supplier_name,
       total_amount,
@@ -93,8 +105,12 @@ export async function getPurchaseOrders(): Promise<PurchaseOrder[]> {
       created_at,
       created_by_user:profiles!purchase_orders_created_by_profiles_fkey (full_name)
     `
-    )
-    .order("created_at", { ascending: false });
+  );
+
+  query = applyBranchFilter(query, context);
+  query = query.order("created_at", { ascending: false });
+
+  const { data, error } = await query;
 
   if (error) {
     console.error(error);
@@ -112,9 +128,12 @@ export async function getPurchaseOrders(): Promise<PurchaseOrder[]> {
 export async function getPurchaseOrderDetails(
   id: string
 ): Promise<(PurchaseOrder & { items: PurchaseOrderItem[] }) | null> {
+  const context = await getTenantContext();
+  if (!context) return null;
+
   const supabase = await createClient();
 
-  const { data: order, error: orderError } = await supabase
+  let orderQuery = supabase
     .from("purchase_orders")
     .select(
       `
@@ -126,14 +145,17 @@ export async function getPurchaseOrderDetails(
       created_by_user:profiles!purchase_orders_created_by_profiles_fkey (full_name)
     `
     )
-    .eq("id", id)
-    .single();
+    .eq("id", id);
+
+  orderQuery = applyBranchFilter(orderQuery, context);
+
+  const { data: order, error: orderError } = await orderQuery.single();
 
   if (orderError || !order) {
     return null;
   }
 
-  const { data: items, error: itemsError } = await supabase
+  let itemsQuery = supabase
     .from("purchase_order_items")
     .select(
       `
@@ -146,6 +168,11 @@ export async function getPurchaseOrderDetails(
     `
     )
     .eq("purchase_order_id", id);
+
+  // Apply organization filter to products within items
+  itemsQuery = applyOrganizationFilter(itemsQuery, context, "products");
+
+  const { data: items, error: itemsError } = await itemsQuery;
 
   if (itemsError || !items) {
     return null;
@@ -170,14 +197,18 @@ export async function getPurchaseOrderDetails(
 }
 
 export async function deletePurchaseOrderAction(id: string) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
   // Note: Items will be deleted automatically due to CASCADE
   // But stock won't be reversed - this is intentional for audit purposes
-  const { error } = await supabase
-    .from("purchase_orders")
-    .delete()
-    .eq("id", id);
+  let query = supabase.from("purchase_orders").delete().eq("id", id);
+
+  query = applyBranchFilter(query, context);
+
+  const { error } = await query;
 
   if (error) {
     console.error(error);
@@ -185,11 +216,35 @@ export async function deletePurchaseOrderAction(id: string) {
   }
 
   revalidatePath("/purchases");
+  revalidatePath("/inventory");
+  revalidatePath("/warehouses");
   return { success: true };
 }
 
 export async function deletePurchaseOrderItemAction(itemId: string) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
+
+  // We should ideally ensure this item belongs to a PO in our branch
+  // For simplicity, we can do an inner join check or just rely on the PO check
+  // But let's be safe
+  const { data: item } = await supabase
+    .from("purchase_order_items")
+    .select("purchase_order_id")
+    .eq("id", itemId)
+    .single();
+
+  if (item) {
+    let poQuery = supabase
+      .from("purchase_orders")
+      .select("id")
+      .eq("id", item.purchase_order_id);
+    poQuery = applyBranchFilter(poQuery, context);
+    const { data: po } = await poQuery.maybeSingle();
+    if (!po) return { error: "Unauthorized" };
+  }
 
   const { error } = await supabase
     .from("purchase_order_items")
@@ -202,15 +257,29 @@ export async function deletePurchaseOrderItemAction(itemId: string) {
   }
 
   revalidatePath("/purchases");
+  revalidatePath("/inventory");
+  revalidatePath("/warehouses");
   return { success: true };
 }
 
 export async function getPurchaseOrderItems(
   purchaseId: string
 ): Promise<PurchaseOrderItem[]> {
+  const context = await getTenantContext();
+  if (!context) return [];
+
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  // Ensure PO belongs to branch
+  let poQuery = supabase
+    .from("purchase_orders")
+    .select("id")
+    .eq("id", purchaseId);
+  poQuery = applyBranchFilter(poQuery, context);
+  const { data: po } = await poQuery.maybeSingle();
+  if (!po) return [];
+
+  let itemsQuery = supabase
     .from("purchase_order_items")
     .select(
       `
@@ -223,6 +292,11 @@ export async function getPurchaseOrderItems(
     `
     )
     .eq("purchase_order_id", purchaseId);
+
+  // Apply organization filter to products within items
+  itemsQuery = applyOrganizationFilter(itemsQuery, context, "products");
+
+  const { data, error } = await itemsQuery;
 
   if (error) {
     console.error(error);
@@ -243,7 +317,27 @@ export async function updatePurchaseOrderItemAction(
   quantity: number,
   unitPrice: number
 ) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
+
+  // Ensure item belongs to branch
+  const { data: item } = await supabase
+    .from("purchase_order_items")
+    .select("purchase_order_id")
+    .eq("id", itemId)
+    .single();
+
+  if (item) {
+    let poQuery = supabase
+      .from("purchase_orders")
+      .select("id")
+      .eq("id", item.purchase_order_id);
+    poQuery = applyBranchFilter(poQuery, context);
+    const { data: po } = await poQuery.maybeSingle();
+    if (!po) return { error: "Unauthorized" };
+  }
 
   const { error } = await supabase
     .from("purchase_order_items")
@@ -260,5 +354,7 @@ export async function updatePurchaseOrderItemAction(
   }
 
   revalidatePath("/purchases");
+  revalidatePath("/inventory");
+  revalidatePath("/warehouses");
   return { success: true };
 }

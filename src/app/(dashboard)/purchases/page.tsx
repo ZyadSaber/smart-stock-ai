@@ -1,27 +1,19 @@
-import { createClient } from "@/utils/supabase/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PurchaseOrderDialog } from "@/components/purchases/purchase-order-dialog";
-import { getPurchaseOrders } from "./actions";
 import { PurchaseHistoryTable } from "@/components/purchases/PurchaseHistoryTable";
 import { formatEGP } from "@/lib/utils";
+import { getPurchasesPageData } from "@/services/purchases";
+import { resolvePageData } from "@/lib/page-utils";
 import { PurchaseOrder } from "@/types/purchases";
 
-export default async function PurchasesPage() {
-    const supabase = await createClient();
 
-    // Fetch products and warehouses for the dialog
-    const { data: products } = await supabase
-        .from('products')
-        .select('id, name, cost_price')
-        .order('name');
+interface PurchasesPageProps {
+    searchParams: Promise<{ organization_id?: string; branch_id?: string }>;
+}
 
-    const { data: warehouses } = await supabase
-        .from('warehouses')
-        .select('id, name')
-        .order('name');
+export default async function PurchasesPage({ searchParams }: PurchasesPageProps) {
+    const { purchaseOrders, products, warehouses } = await resolvePageData(searchParams, getPurchasesPageData);
 
-    // Fetch purchase orders
-    const purchaseOrders = await getPurchaseOrders();
 
     // Calculate summary stats
     const totalPurchases = purchaseOrders.length;
@@ -35,31 +27,31 @@ export default async function PurchasesPage() {
                     <p className="text-muted-foreground">Record and track product purchases.</p>
                 </div>
                 <PurchaseOrderDialog
-                    products={products || []}
-                    warehouses={warehouses || []}
+                    products={products}
+                    warehouses={warehouses}
                 />
             </div>
 
             {/* Summary Cards */}
             <div className="grid gap-4 md:grid-cols-2">
-                <Card>
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Purchases</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Purchases</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{totalPurchases}</div>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground mt-1">
                             Purchase orders recorded
                         </p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Amount</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{formatEGP(totalAmount)}</div>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground mt-1">
                             Total purchase value
                         </p>
                     </CardContent>
@@ -67,7 +59,7 @@ export default async function PurchasesPage() {
             </div>
 
             {/* Purchase Orders Table */}
-            <Card>
+            <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md">
                 <CardHeader>
                     <CardTitle>Purchase History</CardTitle>
                     <CardDescription>

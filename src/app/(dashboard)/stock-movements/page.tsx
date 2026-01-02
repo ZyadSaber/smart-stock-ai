@@ -1,4 +1,3 @@
-import { createClient } from "@/utils/supabase/server";
 import {
     Table,
     TableBody,
@@ -12,24 +11,16 @@ import { StockMovementDialog } from "@/components/stock-movements/stock-movement
 import { DeleteMovementDialog } from "@/components/stock-movements/delete-movement-dialog";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Package } from "lucide-react";
-import { getStockMovements } from "./actions";
+import { getStockMovementsPageData } from "@/services/stock-movements";
+import { resolvePageData } from "@/lib/page-utils";
 
-export default async function StockMovementsPage() {
-    const supabase = await createClient();
+interface StockMovementsPageProps {
+    searchParams: Promise<{ organization_id?: string; branch_id?: string }>;
+}
 
-    // Fetch products and warehouses for the dialog
-    const { data: products } = await supabase
-        .from('products')
-        .select('id, name')
-        .order('name');
+export default async function StockMovementsPage({ searchParams }: StockMovementsPageProps) {
+    const { movements, products, warehouses } = await resolvePageData(searchParams, getStockMovementsPageData);
 
-    const { data: warehouses } = await supabase
-        .from('warehouses')
-        .select('id, name')
-        .order('name');
-
-    // Fetch stock movements
-    const movements = await getStockMovements();
 
     return (
         <div className="p-8 space-y-6">
@@ -39,8 +30,8 @@ export default async function StockMovementsPage() {
                     <p className="text-muted-foreground">Track stock transfers between warehouses.</p>
                 </div>
                 <StockMovementDialog
-                    products={products || []}
-                    warehouses={warehouses || []}
+                    products={products}
+                    warehouses={warehouses}
                 />
             </div>
 
@@ -77,7 +68,7 @@ export default async function StockMovementsPage() {
                                 ) : (
                                     movements.map((movement: any) => (
                                         <TableRow key={movement.id}>
-                                            <TableCell className="font-mono text-xs">
+                                            <TableCell className="font-mono text-xs text-nowrap">
                                                 {new Date(movement.created_at).toLocaleString()}
                                             </TableCell>
                                             <TableCell className="font-medium">
@@ -111,8 +102,8 @@ export default async function StockMovementsPage() {
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
                                                     <StockMovementDialog
-                                                        products={products || []}
-                                                        warehouses={warehouses || []}
+                                                        products={products}
+                                                        warehouses={warehouses}
                                                         movement={{
                                                             id: movement.id,
                                                             product_id: movement.product_id,

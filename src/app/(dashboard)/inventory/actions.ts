@@ -4,10 +4,18 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { productSchema } from "@/lib/validations/product";
 import type { z } from "zod";
+import {
+  getTenantContext,
+  getOrganizationDefaults,
+  applyOrganizationFilter,
+} from "@/lib/tenant";
 
 export type ProductFormInput = z.input<typeof productSchema>;
 
 export async function createProductAction(values: ProductFormInput) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
   const validatedFields = productSchema.safeParse(values);
@@ -18,7 +26,12 @@ export async function createProductAction(values: ProductFormInput) {
 
   const { error } = await supabase
     .from("products")
-    .insert([validatedFields.data])
+    .insert([
+      {
+        ...validatedFields.data,
+        ...getOrganizationDefaults(context),
+      },
+    ])
     .select();
 
   if (error) {
@@ -34,6 +47,9 @@ export async function updateProductAction(
   id: string,
   values: ProductFormInput
 ) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
   const validatedFields = productSchema.safeParse(values);
@@ -42,11 +58,14 @@ export async function updateProductAction(
     return { error: "Invalid fields provided." };
   }
 
-  const { error } = await supabase
+  // Ensure user can only update products in their organization
+  let query = supabase
     .from("products")
     .update(validatedFields.data)
-    .eq("id", id)
-    .select();
+    .eq("id", id);
+  query = applyOrganizationFilter(query, context);
+
+  const { error } = await query.select();
 
   if (error) {
     console.error(error);
@@ -58,9 +77,16 @@ export async function updateProductAction(
 }
 
 export async function deleteProductAction(id: string) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
-  const { error } = await supabase.from("products").delete().eq("id", id);
+  // Ensure user can only delete products in their organization
+  let query = supabase.from("products").delete().eq("id", id);
+  query = applyOrganizationFilter(query, context);
+
+  const { error } = await query;
 
   if (error) {
     console.error(error);

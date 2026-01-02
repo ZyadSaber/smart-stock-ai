@@ -6,8 +6,16 @@ import {
   warehouseSchema,
   type WarehouseFormInput,
 } from "@/lib/validations/warehouse";
+import {
+  getTenantContext,
+  getBranchDefaults,
+  applyBranchFilter,
+} from "@/lib/tenant";
 
 export async function createWarehouseAction(values: WarehouseFormInput) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
   const validatedFields = warehouseSchema.safeParse(values);
@@ -18,7 +26,12 @@ export async function createWarehouseAction(values: WarehouseFormInput) {
 
   const { error } = await supabase
     .from("warehouses")
-    .insert([validatedFields.data])
+    .insert([
+      {
+        ...validatedFields.data,
+        ...getBranchDefaults(context),
+      },
+    ])
     .select();
 
   if (error) {
@@ -34,6 +47,9 @@ export async function updateWarehouseAction(
   id: string,
   values: WarehouseFormInput
 ) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
   const validatedFields = warehouseSchema.safeParse(values);
@@ -42,11 +58,13 @@ export async function updateWarehouseAction(
     return { error: "Invalid fields provided." };
   }
 
-  const { error } = await supabase
+  let query = supabase
     .from("warehouses")
     .update(validatedFields.data)
-    .eq("id", id)
-    .select();
+    .eq("id", id);
+  query = applyBranchFilter(query, context);
+
+  const { error } = await query.select();
 
   if (error) {
     console.error(error);
@@ -58,14 +76,20 @@ export async function updateWarehouseAction(
 }
 
 export async function deleteWarehouseAction(id: string) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
   // First check if warehouse has stock
-  const { data: stocks, error: checkError } = await supabase
+  let checkQuery = supabase
     .from("product_stocks")
     .select("id")
     .eq("warehouse_id", id)
     .limit(1);
+  checkQuery = applyBranchFilter(checkQuery, context);
+
+  const { data: stocks, error: checkError } = await checkQuery;
 
   if (checkError) {
     console.error(checkError);
@@ -79,7 +103,10 @@ export async function deleteWarehouseAction(id: string) {
     };
   }
 
-  const { error } = await supabase.from("warehouses").delete().eq("id", id);
+  let deleteQuery = supabase.from("warehouses").delete().eq("id", id);
+  deleteQuery = applyBranchFilter(deleteQuery, context);
+
+  const { error } = await deleteQuery;
 
   if (error) {
     console.error(error);
@@ -96,6 +123,9 @@ export async function updateStockAction(
   warehouseId: string,
   quantity: number
 ) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
   if (quantity < 0) {
@@ -103,20 +133,27 @@ export async function updateStockAction(
   }
 
   // Check if stock record exists
-  const { data: existingStock } = await supabase
+  let checkQuery = supabase
     .from("product_stocks")
     .select("id")
     .eq("product_id", productId)
-    .eq("warehouse_id", warehouseId)
-    .single();
+    .eq("warehouse_id", warehouseId);
+
+  checkQuery = applyBranchFilter(checkQuery, context);
+
+  const { data: existingStock } = await checkQuery.maybeSingle();
 
   if (existingStock) {
     // Update existing stock
-    const { error } = await supabase
+    let updateQuery = supabase
       .from("product_stocks")
       .update({ quantity })
       .eq("product_id", productId)
       .eq("warehouse_id", warehouseId);
+
+    updateQuery = applyBranchFilter(updateQuery, context);
+
+    const { error } = await updateQuery;
 
     if (error) {
       console.error(error);
@@ -124,9 +161,14 @@ export async function updateStockAction(
     }
   } else {
     // Create new stock record
-    const { error } = await supabase
-      .from("product_stocks")
-      .insert([{ product_id: productId, warehouse_id: warehouseId, quantity }]);
+    const { error } = await supabase.from("product_stocks").insert([
+      {
+        product_id: productId,
+        warehouse_id: warehouseId,
+        quantity,
+        ...getBranchDefaults(context),
+      },
+    ]);
 
     if (error) {
       console.error(error);
@@ -135,16 +177,49 @@ export async function updateStockAction(
   }
 
   revalidatePath("/warehouses");
+  revalidatePath("/inventory");
   return { success: true };
 }
 
-export async function getAllWarehousesValuation() {
+export async function getAllWarehousesValuation(
+  searchParams: { organization_id?: string; branch_id?: string } = {}
+) {
+  const context = await getTenantContext();
+  if (!context) return [];
+
   const supabase = await createClient();
 
-  // 1. Get all warehouses
-  const { data: warehouses, error: wError } = await supabase
-    .from("warehouses")
-    .select("id, name");
+  // Determine effectively active filters
+  let activeOrgId: string | undefined = undefined;
+  let activeBranchId: string | undefined = undefined;
+
+  if (context.isSuperAdmin) {
+    activeOrgId = searchParams.organization_id;
+    activeBranchId = searchParams.branch_id;
+  } else {
+    activeOrgId = context.organizationId || undefined;
+    activeBranchId = context.branchId || undefined;
+  }
+
+  // 1. Get all warehouses based on context or super admin choice
+  let query = supabase.from("warehouses").select("id, name");
+
+  if (context.isSuperAdmin) {
+    if (activeBranchId) {
+      query = query.eq("branch_id", activeBranchId);
+    } else if (activeOrgId) {
+      const { data: orgBranches } = await supabase
+        .from("branches")
+        .select("id")
+        .eq("organization_id", activeOrgId);
+      const branchIds = orgBranches?.map((b) => b.id) || [];
+      query = query.in("branch_id", branchIds);
+    }
+  } else {
+    query = applyBranchFilter(query, context);
+  }
+
+  const { data: warehouses, error: wError } = await query;
 
   if (wError || !warehouses) {
     console.error(wError);

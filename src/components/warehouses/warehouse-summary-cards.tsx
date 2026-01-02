@@ -1,0 +1,44 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { WarehouseDialog } from "@/components/warehouses/warehouse-dialog";
+import { DeleteWarehouseDialog } from "@/components/warehouses/delete-warehouse-dialog";
+import { WarehouseWithStats } from "@/services/warehouses";
+
+interface WarehouseSummaryCardsProps {
+    warehouses: WarehouseWithStats[];
+}
+
+export function WarehouseSummaryCards({ warehouses }: WarehouseSummaryCardsProps) {
+    return (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {warehouses.map((warehouse) => (
+                <Card key={warehouse.id}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-lg font-semibold">{warehouse.name}</CardTitle>
+                        <div className="flex gap-1">
+                            <WarehouseDialog warehouse={warehouse} />
+                            <DeleteWarehouseDialog
+                                warehouseId={warehouse.id}
+                                warehouseName={warehouse.name}
+                            />
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <CardDescription className="mb-3">
+                            {warehouse.location || "No location specified"}
+                        </CardDescription>
+                        <div className="flex gap-4 text-sm">
+                            <div>
+                                <p className="text-muted-foreground">Products</p>
+                                <p className="text-2xl font-bold">{warehouse.totalItems}</p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Total Units</p>
+                                <p className="text-2xl font-bold">{warehouse.totalQuantity}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+        </div>
+    );
+}

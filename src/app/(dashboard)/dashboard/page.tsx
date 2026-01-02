@@ -10,12 +10,19 @@ import { StockFlowChart } from "@/components/dashboard/stock-flow-chart";
 import { Package, DollarSign, TrendingUp, ArrowUpRight } from "lucide-react";
 import { formatEGP } from '@/lib/utils';
 
-export default async function DashboardPage() {
-    const stats = await getDashboardStats();
-    const sales = await getSales();
-    const warehouseValuations = await getAllWarehousesValuation();
-    const topProducts = await getTopSellingProducts();
-    const stockFlow = await getStockFlowData();
+export default async function DashboardPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ organization_id?: string; branch_id?: string }>;
+}) {
+    const filters = await searchParams;
+    const stats = await getDashboardStats(filters);
+    const sales = await getSales(filters);
+    const warehouseValuations = await getAllWarehousesValuation(filters);
+    const topProducts = await getTopSellingProducts(filters);
+    const stockFlow = await getStockFlowData(filters);
+
+
 
     // Currency formatting is now handled by formatEGP from utils
 

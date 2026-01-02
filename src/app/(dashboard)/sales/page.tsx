@@ -1,26 +1,18 @@
-import { createClient } from "@/utils/supabase/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SaleOrderDialog } from "@/components/sales/sale-order-dialog";
-import { getSales } from "./actions";
 import { SalesHistoryTable } from "@/components/sales/SalesHistoryTable";
 import { formatEGP } from "@/lib/utils";
+import { getSalesPageData } from "@/services/sales";
+import { resolvePageData } from "@/lib/page-utils";
 
-export default async function SalesPage() {
-    const supabase = await createClient();
 
-    // Fetch products and warehouses for the dialog
-    const { data: products } = await supabase
-        .from('products')
-        .select('id, name, selling_price')
-        .order('name');
+interface SalesPageProps {
+    searchParams: Promise<{ organization_id?: string; branch_id?: string }>;
+}
 
-    const { data: warehouses } = await supabase
-        .from('warehouses')
-        .select('id, name')
-        .order('name');
+export default async function SalesPage({ searchParams }: SalesPageProps) {
+    const { sales, products, warehouses } = await resolvePageData(searchParams, getSalesPageData);
 
-    // Fetch sales
-    const sales = await getSales();
 
     // Calculate summary stats
     const totalSalesCount = sales.length;
@@ -35,42 +27,42 @@ export default async function SalesPage() {
                     <p className="text-muted-foreground">Manage customer sales and track revenue.</p>
                 </div>
                 <SaleOrderDialog
-                    products={products || []}
-                    warehouses={warehouses || []}
+                    products={products}
+                    warehouses={warehouses}
                 />
             </div>
 
             {/* Summary Cards */}
             <div className="grid gap-4 md:grid-cols-3">
-                <Card>
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Sales</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{totalSalesCount}</div>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground mt-1">
                             Transactions recorded
                         </p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Revenue</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{formatEGP(totalRevenue)}</div>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground mt-1">
                             Gross value of all sales
                         </p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md text-green-600">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Profit</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Profit</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-green-600">{formatEGP(totalProfit)}</div>
-                        <p className="text-xs text-muted-foreground">
+                        <div className="text-2xl font-bold">{formatEGP(totalProfit)}</div>
+                        <p className="text-xs text-muted-foreground mt-1">
                             Net earnings after costs
                         </p>
                     </CardContent>
@@ -78,7 +70,7 @@ export default async function SalesPage() {
             </div>
 
             {/* Sales History Table */}
-            <Card>
+            <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md">
                 <CardHeader>
                     <CardTitle>Sales History</CardTitle>
                     <CardDescription>

@@ -6,10 +6,18 @@ import {
   stockMovementSchema,
   type StockMovementFormInput,
 } from "@/lib/validations/stock-movement";
+import {
+  getTenantContext,
+  getBranchDefaults,
+  applyBranchFilter,
+} from "@/lib/tenant";
 
 export async function createStockMovementAction(
   values: StockMovementFormInput
 ) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
   const validatedFields = stockMovementSchema.safeParse(values);
@@ -18,26 +26,29 @@ export async function createStockMovementAction(
     return { error: "Invalid fields provided." };
   }
 
-  // Get current user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Get current user - Replaced by context.userId
+  // const {
+  //   data: { user },
+  // } = await supabase.auth.getUser();
 
-  if (!user) {
-    return { error: "User not authenticated." };
-  }
+  // if (!user) {
+  //   return { error: "User not authenticated." };
+  // }
 
   // Check if source warehouse has enough stock
   if (
     validatedFields.data.from_warehouse_id &&
     validatedFields.data.from_warehouse_id !== "none"
   ) {
-    const { data: stock } = await supabase
+    let stockQuery = supabase
       .from("product_stocks")
       .select("quantity")
       .eq("product_id", validatedFields.data.product_id)
-      .eq("warehouse_id", validatedFields.data.from_warehouse_id)
-      .single();
+      .eq("warehouse_id", validatedFields.data.from_warehouse_id);
+
+    stockQuery = applyBranchFilter(stockQuery, context);
+
+    const { data: stock } = await stockQuery.maybeSingle();
 
     if (!stock) {
       return {
@@ -58,7 +69,8 @@ export async function createStockMovementAction(
     .insert([
       {
         ...validatedFields.data,
-        created_by: user.id,
+        created_by: context.userId,
+        ...getBranchDefaults(context),
       },
     ])
     .select();
@@ -69,6 +81,7 @@ export async function createStockMovementAction(
   }
 
   revalidatePath("/warehouses");
+  revalidatePath("/inventory");
   revalidatePath("/stock-movements");
   return { success: true };
 }
@@ -77,6 +90,9 @@ export async function updateStockMovementAction(
   id: string,
   values: StockMovementFormInput
 ) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
   const validatedFields = stockMovementSchema.safeParse(values);
 
@@ -85,11 +101,14 @@ export async function updateStockMovementAction(
   }
 
   // Get current movement to compare
-  const { data: oldMovement } = await supabase
+  let oldMovementQuery = supabase
     .from("stock_movements")
     .select("*")
-    .eq("id", id)
-    .single();
+    .eq("id", id);
+
+  oldMovementQuery = applyBranchFilter(oldMovementQuery, context);
+
+  const { data: oldMovement } = await oldMovementQuery.single();
 
   if (!oldMovement) return { error: "Movement not found." };
 
@@ -99,12 +118,15 @@ export async function updateStockMovementAction(
     validatedFields.data.from_warehouse_id &&
     validatedFields.data.from_warehouse_id !== "none"
   ) {
-    const { data: stock } = await supabase
+    let stockQuery = supabase
       .from("product_stocks")
       .select("quantity")
       .eq("product_id", validatedFields.data.product_id)
-      .eq("warehouse_id", validatedFields.data.from_warehouse_id)
-      .single();
+      .eq("warehouse_id", validatedFields.data.from_warehouse_id);
+
+    stockQuery = applyBranchFilter(stockQuery, context);
+
+    const { data: stock } = await stockQuery.maybeSingle();
 
     const currentQuantity = stock?.quantity || 0;
     const oldReleased =
@@ -119,7 +141,7 @@ export async function updateStockMovementAction(
     }
   }
 
-  const { error } = await supabase
+  let finalUpdateQuery = supabase
     .from("stock_movements")
     .update({
       ...validatedFields.data,
@@ -134,23 +156,32 @@ export async function updateStockMovementAction(
     })
     .eq("id", id);
 
+  finalUpdateQuery = applyBranchFilter(finalUpdateQuery, context);
+
+  const { error } = await finalUpdateQuery;
+
   if (error) {
     console.error(error);
     return { error: "Database error: Could not update movement." };
   }
 
   revalidatePath("/warehouses");
+  revalidatePath("/inventory");
   revalidatePath("/stock-movements");
   return { success: true };
 }
 
 export async function deleteStockMovementAction(id: string) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
 
-  const { error } = await supabase
-    .from("stock_movements")
-    .delete()
-    .eq("id", id);
+  let query = supabase.from("stock_movements").delete().eq("id", id);
+
+  query = applyBranchFilter(query, context);
+
+  const { error } = await query;
 
   if (error) {
     console.error(error);
@@ -158,17 +189,19 @@ export async function deleteStockMovementAction(id: string) {
   }
 
   revalidatePath("/warehouses");
+  revalidatePath("/inventory");
   revalidatePath("/stock-movements");
   return { success: true };
 }
 
 export async function getStockMovements() {
+  const context = await getTenantContext();
+  if (!context) return [];
+
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("stock_movements")
-    .select(
-      `
+  let query = supabase.from("stock_movements").select(
+    `
       id,
       quantity,
       notes,
@@ -178,8 +211,12 @@ export async function getStockMovements() {
       to_warehouse:warehouses!stock_movements_to_warehouse_id_fkey (name),
       created_by_user:profiles!stock_movements_created_by_profiles_fkey (full_name)
     `
-    )
-    .order("created_at", { ascending: false });
+  );
+
+  query = applyBranchFilter(query, context);
+  query = query.order("created_at", { ascending: false });
+
+  const { data, error } = await query;
 
   if (error) {
     console.error(error);
@@ -189,16 +226,54 @@ export async function getStockMovements() {
   return data;
 }
 
-export async function getStockFlowData() {
+export async function getStockFlowData(
+  searchParams: { organization_id?: string; branch_id?: string } = {}
+) {
+  const context = await getTenantContext();
+  if (!context) return [];
+
   const supabase = await createClient();
 
+  // Determine effectively active filters
+  let activeOrgId: string | undefined = undefined;
+  let activeBranchId: string | undefined = undefined;
+
+  if (context.isSuperAdmin) {
+    activeOrgId = searchParams.organization_id;
+    activeBranchId = searchParams.branch_id;
+  } else {
+    activeOrgId = context.organizationId || undefined;
+    activeBranchId = context.branchId || undefined;
+  }
+
   // 1. Get Inbound Flow (Purchases)
-  const { data: inboundData, error: inError } = await supabase.from(
-    "purchase_order_items"
-  ).select(`
+  let inboundQuery = supabase.from("purchase_order_items").select(`
       quantity,
-      purchase_orders!inner ( created_at )
+      purchase_orders!inner ( created_at, branch_id )
     `);
+
+  if (context.isSuperAdmin) {
+    if (activeBranchId) {
+      inboundQuery = inboundQuery.eq(
+        "purchase_orders.branch_id",
+        activeBranchId
+      );
+    } else if (activeOrgId) {
+      const { data: orgBranches } = await supabase
+        .from("branches")
+        .select("id")
+        .eq("organization_id", activeOrgId);
+      const branchIds = orgBranches?.map((b) => b.id) || [];
+      inboundQuery = inboundQuery.in("purchase_orders.branch_id", branchIds);
+    }
+  } else if (context.branchId) {
+    inboundQuery = inboundQuery.eq(
+      "purchase_orders.branch_id",
+      context.branchId
+    );
+  }
+
+  const { data: inboundData, error: inError } = await inboundQuery;
 
   if (inError) {
     console.error(inError);
@@ -206,12 +281,27 @@ export async function getStockFlowData() {
   }
 
   // 2. Get Outbound Flow (Sales)
-  const { data: outboundData, error: outError } = await supabase.from(
-    "sale_items"
-  ).select(`
+  let outboundQuery = supabase.from("sale_items").select(`
       quantity,
-      sales!inner ( created_at )
+      sales!inner ( created_at, branch_id )
     `);
+
+  if (context.isSuperAdmin) {
+    if (activeBranchId) {
+      outboundQuery = outboundQuery.eq("sales.branch_id", activeBranchId);
+    } else if (activeOrgId) {
+      const { data: orgBranches } = await supabase
+        .from("branches")
+        .select("id")
+        .eq("organization_id", activeOrgId);
+      const branchIds = orgBranches?.map((b) => b.id) || [];
+      outboundQuery = outboundQuery.in("sales.branch_id", branchIds);
+    }
+  } else if (context.branchId) {
+    outboundQuery = outboundQuery.eq("sales.branch_id", context.branchId);
+  }
+
+  const { data: outboundData, error: outError } = await outboundQuery;
 
   if (outError) {
     console.error(outError);
@@ -226,12 +316,16 @@ export async function getStockFlowData() {
 
   interface InboundRaw {
     quantity: number;
-    purchase_orders: { created_at: string } | { created_at: string }[];
+    purchase_orders:
+      | { created_at: string; branch_id: string | null }
+      | { created_at: string; branch_id: string | null }[];
   }
 
   interface OutboundRaw {
     quantity: number;
-    sales: { created_at: string } | { created_at: string }[];
+    sales:
+      | { created_at: string; branch_id: string | null }
+      | { created_at: string; branch_id: string | null }[];
   }
 
   // Process Inbound

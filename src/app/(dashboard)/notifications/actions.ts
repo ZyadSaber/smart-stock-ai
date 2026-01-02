@@ -3,14 +3,23 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { Notification } from "@/types/notifications";
+import { getTenantContext, applyBranchFilter } from "@/lib/tenant";
 
 export async function getNotifications(): Promise<Notification[]> {
+  const context = await getTenantContext();
+  if (!context) return [];
+
   const supabase = await createClient();
-  const { data, error } = await supabase
+
+  let query = supabase
     .from("notifications")
     .select("*")
     .order("created_at", { ascending: false })
     .limit(20);
+
+  query = applyBranchFilter(query, context);
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Error fetching notifications:", error);
@@ -21,11 +30,19 @@ export async function getNotifications(): Promise<Notification[]> {
 }
 
 export async function markAsReadAction(id: string) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
   const supabase = await createClient();
-  const { error } = await supabase
+
+  let query = supabase
     .from("notifications")
     .update({ is_read: true })
     .eq("id", id);
+
+  query = applyBranchFilter(query, context);
+
+  const { error } = await query;
 
   if (error) {
     console.error("Error marking notification as read:", error);
@@ -37,18 +54,20 @@ export async function markAsReadAction(id: string) {
 }
 
 export async function markAllAsReadAction() {
+  const context = await getTenantContext();
+  if (!context) return { error: "Not authenticated" };
+
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  if (!user) return { error: "Not authenticated" };
-
-  const { error } = await supabase
+  let query = supabase
     .from("notifications")
     .update({ is_read: true })
-    .eq("user_id", user.id)
+    .eq("user_id", context.userId)
     .eq("is_read", false);
+
+  query = applyBranchFilter(query, context);
+
+  const { error } = await query;
 
   if (error) {
     console.error("Error marking all notifications as read:", error);

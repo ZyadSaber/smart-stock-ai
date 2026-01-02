@@ -1,72 +1,88 @@
 -- ========================================================
--- SMART STOCK AI - PRODUCTION DATABASE SCHEMA
+-- SMART STOCK AI - PRODUCTION DATABASE SCHEMA (UNIFIED)
 -- ========================================================
--- Description: Complete schema including tables, relationships, 
--- functions, triggers, and Row Level Security (RLS).
+-- Description: Complete schema including multi-tenancy support,
+-- tables, relationships, functions, triggers, and Row Level Security.
+-- Date: 2026-01-02
 -- ========================================================
 
 -- 1. EXTENSIONS
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. CLEANUP (Optional - Use with caution)
--- DROP TABLE IF EXISTS stock_movements;
--- DROP TABLE IF EXISTS purchase_order_items;
--- DROP TABLE IF EXISTS purchase_orders;
--- DROP TABLE IF EXISTS sale_items;
--- DROP TABLE IF EXISTS sales;
--- DROP TABLE IF EXISTS product_stocks;
--- DROP TABLE IF EXISTS products;
--- DROP TABLE IF EXISTS warehouses;
--- DROP TABLE IF EXISTS categories;
--- DROP TABLE IF EXISTS profiles;
-
 -- ========================================================
--- 3. CORE TABLES
+-- 3. CORE TABLES (HIERARCHICAL)
 -- ========================================================
 
--- Profiles (Extending Supabase Auth Users)
-CREATE TABLE profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  full_name TEXT,
-  role TEXT CHECK (role IN ('admin', 'manager', 'cashier')) DEFAULT 'cashier',
-  permissions JSONB DEFAULT '{
-    "can_view_reports": false,
-    "can_edit_inventory": false
-  }',
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Categories
-CREATE TABLE categories (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL UNIQUE,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Warehouses
-CREATE TABLE warehouses (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL UNIQUE,
-  location TEXT,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Products
-CREATE TABLE products (
+-- Organizations (Clients)
+CREATE TABLE IF NOT EXISTS organizations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
-  barcode TEXT UNIQUE,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Branches (Locations)
+CREATE TABLE IF NOT EXISTS branches (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  location TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Profiles (Extending Supabase Auth Users)
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name TEXT,
+  is_super_admin BOOLEAN DEFAULT FALSE,
+  organization_id UUID REFERENCES organizations(id),
+  branch_id UUID REFERENCES branches(id),
+  permissions JSONB DEFAULT '{}',
+  default_page TEXT DEFAULT 'dashboard',
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Categories (Org level)
+CREATE TABLE IF NOT EXISTS categories (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(organization_id, name)
+);
+
+-- Warehouses (Branch level)
+CREATE TABLE IF NOT EXISTS warehouses (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  branch_id UUID REFERENCES branches(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  location TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(branch_id, name)
+);
+
+-- Products (Org level)
+CREATE TABLE IF NOT EXISTS products (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  barcode TEXT,
   cost_price DECIMAL(12,2) NOT NULL DEFAULT 0,
   selling_price DECIMAL(12,2) NOT NULL DEFAULT 0,
   category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(organization_id, barcode)
 );
 
--- Product Stocks (Inventory Matrix)
-CREATE TABLE product_stocks (
+-- Product Stocks (Inventory Matrix - Branch level)
+CREATE TABLE IF NOT EXISTS product_stocks (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   product_id UUID REFERENCES products(id) ON DELETE CASCADE,
   warehouse_id UUID REFERENCES warehouses(id) ON DELETE CASCADE,
+  branch_id UUID REFERENCES branches(id) ON DELETE CASCADE,
   quantity INTEGER DEFAULT 0,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(product_id, warehouse_id),
@@ -78,8 +94,9 @@ CREATE TABLE product_stocks (
 -- ========================================================
 
 -- Sales
-CREATE TABLE sales (
+CREATE TABLE IF NOT EXISTS sales (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
   customer_name TEXT,
   notes TEXT,
   total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -88,8 +105,8 @@ CREATE TABLE sales (
   user_id UUID REFERENCES profiles(id) ON DELETE SET NULL
 );
 
--- Sale Items (Detailed Invoices)
-CREATE TABLE sale_items (
+-- Sale Items
+CREATE TABLE IF NOT EXISTS sale_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   sale_id UUID REFERENCES sales(id) ON DELETE CASCADE,
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
@@ -98,9 +115,10 @@ CREATE TABLE sale_items (
   unit_price DECIMAL(12,2) NOT NULL
 );
 
--- Purchase Orders (Vendor Inbound)
-CREATE TABLE purchase_orders (
+-- Purchase Orders
+CREATE TABLE IF NOT EXISTS purchase_orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
   supplier_name TEXT NOT NULL,
   total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
   notes TEXT,
@@ -109,7 +127,7 @@ CREATE TABLE purchase_orders (
 );
 
 -- Purchase Order Items
-CREATE TABLE purchase_order_items (
+CREATE TABLE IF NOT EXISTS purchase_order_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   purchase_order_id UUID REFERENCES purchase_orders(id) ON DELETE CASCADE,
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
@@ -119,9 +137,10 @@ CREATE TABLE purchase_order_items (
   total_price DECIMAL(12,2) NOT NULL
 );
 
--- Stock Movements (Internal Transfers)
-CREATE TABLE stock_movements (
+-- Stock Movements
+CREATE TABLE IF NOT EXISTS stock_movements (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  branch_id UUID REFERENCES branches(id) ON DELETE SET NULL,
   product_id UUID REFERENCES products(id) ON DELETE CASCADE,
   from_warehouse_id UUID REFERENCES warehouses(id) ON DELETE SET NULL,
   to_warehouse_id UUID REFERENCES warehouses(id) ON DELETE SET NULL,
@@ -131,18 +150,37 @@ CREATE TABLE stock_movements (
   created_by UUID REFERENCES profiles(id) ON DELETE SET NULL
 );
 
+-- Notifications
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  branch_id UUID REFERENCES branches(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT CHECK (type IN ('low_stock', 'big_sale', 'system')) NOT NULL,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- ========================================================
 -- 5. INDEXES FOR PERFORMANCE
 -- ========================================================
-CREATE INDEX idx_products_category ON products(category_id);
-CREATE INDEX idx_stocks_product ON product_stocks(product_id);
-CREATE INDEX idx_stocks_warehouse ON product_stocks(warehouse_id);
-CREATE INDEX idx_sales_user ON sales(user_id);
-CREATE INDEX idx_sale_items_sale ON sale_items(sale_id);
-CREATE INDEX idx_po_items_po ON purchase_order_items(purchase_order_id);
-CREATE INDEX idx_movements_product ON stock_movements(product_id);
-CREATE INDEX idx_movements_from ON stock_movements(from_warehouse_id);
-CREATE INDEX idx_movements_to ON stock_movements(to_warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_org ON profiles(organization_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_branch ON profiles(branch_id);
+CREATE INDEX IF NOT EXISTS idx_branches_org ON branches(organization_id);
+CREATE INDEX IF NOT EXISTS idx_products_org ON products(organization_id);
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_stocks_product ON product_stocks(product_id);
+CREATE INDEX IF NOT EXISTS idx_stocks_warehouse ON product_stocks(warehouse_id);
+CREATE INDEX IF NOT EXISTS idx_stocks_branch ON product_stocks(branch_id);
+CREATE INDEX IF NOT EXISTS idx_sales_branch ON sales(branch_id);
+CREATE INDEX IF NOT EXISTS idx_sales_user ON sales(user_id);
+CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id);
+CREATE INDEX IF NOT EXISTS idx_po_branch ON purchase_orders(branch_id);
+CREATE INDEX IF NOT EXISTS idx_po_items_po ON purchase_order_items(purchase_order_id);
+CREATE INDEX IF NOT EXISTS idx_movements_branch ON stock_movements(branch_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read);
 
 -- ========================================================
 -- 6. FUNCTIONS & TRIGGERS
@@ -157,13 +195,31 @@ BEGIN
 END;
 $$ LANGUAGE 'plpgsql';
 
+CREATE TRIGGER tr_update_organizations BEFORE UPDATE ON organizations FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER tr_update_branches BEFORE UPDATE ON branches FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER tr_update_products BEFORE UPDATE ON products FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER tr_update_stocks BEFORE UPDATE ON product_stocks FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER tr_update_profiles BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER tr_update_categories BEFORE UPDATE ON categories FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER tr_update_warehouses BEFORE UPDATE ON warehouses FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
--- B. Logic for Sales (Deduct Stock)
+-- B. Sync branch_id from warehouse for product_stocks
+CREATE OR REPLACE FUNCTION sync_product_stock_branch()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.branch_id IS NULL THEN
+        SELECT branch_id INTO NEW.branch_id 
+        FROM warehouses WHERE id = NEW.warehouse_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_sync_product_stock_branch
+BEFORE INSERT OR UPDATE OF warehouse_id ON product_stocks
+FOR EACH ROW EXECUTE PROCEDURE sync_product_stock_branch();
+
+-- C. Logic for Sales (Deduct Stock)
 CREATE OR REPLACE FUNCTION decrease_stock_after_sale()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -177,70 +233,54 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER tr_decrease_stock AFTER INSERT ON sale_items
 FOR EACH ROW EXECUTE PROCEDURE decrease_stock_after_sale();
 
--- C. Logic for Purchases (Add Stock) - Comprehensive (Insert, Update, Delete)
+-- D. Logic for Purchases (Manage Stock)
 CREATE OR REPLACE FUNCTION manage_purchase_stock_trigger()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Handle INSERT: Increase stock
   IF (TG_OP = 'INSERT') THEN
     UPDATE product_stocks
     SET quantity = quantity + NEW.quantity
     WHERE product_id = NEW.product_id AND warehouse_id = NEW.warehouse_id;
     
-    -- If no stock record exists, insert it
     IF NOT FOUND THEN
       INSERT INTO product_stocks (product_id, warehouse_id, quantity)
       VALUES (NEW.product_id, NEW.warehouse_id, NEW.quantity);
     END IF;
-    
     RETURN NEW;
 
-  -- Handle DELETE: Decrease stock (Reverse the purchase)
   ELSIF (TG_OP = 'DELETE') THEN
     UPDATE product_stocks
     SET quantity = quantity - OLD.quantity
     WHERE product_id = OLD.product_id AND warehouse_id = OLD.warehouse_id;
-    
     RETURN OLD;
 
-  -- Handle UPDATE: Adjust stock based on difference
   ELSIF (TG_OP = 'UPDATE') THEN
-    -- 1. Reverse the OLD quantity
     UPDATE product_stocks
     SET quantity = quantity - OLD.quantity
     WHERE product_id = OLD.product_id AND warehouse_id = OLD.warehouse_id;
 
-    -- 2. Apply the NEW quantity
     UPDATE product_stocks
     SET quantity = quantity + NEW.quantity
     WHERE product_id = NEW.product_id AND warehouse_id = NEW.warehouse_id;
 
-    -- If no stock record exists for the NEW update (rare case if changing warehouse), insert it
     IF NOT FOUND THEN
       INSERT INTO product_stocks (product_id, warehouse_id, quantity)
       VALUES (NEW.product_id, NEW.warehouse_id, NEW.quantity);
     END IF;
-
     RETURN NEW;
   END IF;
-  
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
--- Drop existing trigger if it exists (to avoid double counting)
-DROP TRIGGER IF EXISTS tr_increase_stock ON purchase_order_items;
-
--- Create the comprehensive trigger
 CREATE TRIGGER tr_manage_purchase_stock
 AFTER INSERT OR UPDATE OR DELETE ON purchase_order_items
 FOR EACH ROW EXECUTE PROCEDURE manage_purchase_stock_trigger();
 
--- D. Logic for Stock Movements (Internal Transfers)
+-- E. Logic for Stock Movements
 CREATE OR REPLACE FUNCTION process_stock_movement()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Handle DELETE: Reverse the movement
   IF (TG_OP = 'DELETE') THEN
     IF OLD.from_warehouse_id IS NOT NULL THEN
       UPDATE product_stocks SET quantity = quantity + OLD.quantity
@@ -252,9 +292,7 @@ BEGIN
     END IF;
     RETURN OLD;
 
-  -- Handle UPDATE: Correct the difference
   ELSIF (TG_OP = 'UPDATE') THEN
-    -- Reverse OLD
     IF OLD.from_warehouse_id IS NOT NULL THEN
       UPDATE product_stocks SET quantity = quantity + OLD.quantity
       WHERE product_id = OLD.product_id AND warehouse_id = OLD.from_warehouse_id;
@@ -263,7 +301,7 @@ BEGIN
       UPDATE product_stocks SET quantity = quantity - OLD.quantity
       WHERE product_id = OLD.product_id AND warehouse_id = OLD.to_warehouse_id;
     END IF;
-    -- Apply NEW
+    
     IF NEW.from_warehouse_id IS NOT NULL THEN
       UPDATE product_stocks SET quantity = quantity - NEW.quantity
       WHERE product_id = NEW.product_id AND warehouse_id = NEW.from_warehouse_id;
@@ -278,7 +316,6 @@ BEGIN
     END IF;
     RETURN NEW;
 
-  -- Handle INSERT: Regular movement
   ELSIF (TG_OP = 'INSERT') THEN
     IF NEW.from_warehouse_id IS NOT NULL THEN
       UPDATE product_stocks SET quantity = quantity - NEW.quantity
@@ -301,6 +338,64 @@ CREATE TRIGGER tr_process_stock_movement
 AFTER INSERT OR UPDATE OR DELETE ON stock_movements
 FOR EACH ROW EXECUTE PROCEDURE process_stock_movement();
 
+-- F. Tenant-Aware Notifications
+CREATE OR REPLACE FUNCTION notify_low_stock()
+RETURNS TRIGGER AS $$
+DECLARE
+    p_name TEXT;
+    v_organization_id UUID;
+    v_branch_id UUID;
+BEGIN
+    IF NEW.quantity < 10 THEN
+        SELECT name, organization_id INTO p_name, v_organization_id 
+        FROM products WHERE id = NEW.product_id;
+        
+        v_branch_id := NEW.branch_id;
+        
+        INSERT INTO notifications (user_id, organization_id, branch_id, title, message, type)
+        SELECT id, v_organization_id, v_branch_id, 'Low Stock Alert', 
+               'Product "' || p_name || '" is low on stock (' || NEW.quantity || ' remaining).', 
+               'low_stock'
+        FROM profiles
+        WHERE ((permissions->>'can_edit_inventory')::boolean = true OR is_super_admin)
+          AND organization_id = v_organization_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_low_stock_notification
+AFTER INSERT OR UPDATE ON product_stocks
+FOR EACH ROW EXECUTE PROCEDURE notify_low_stock();
+
+CREATE OR REPLACE FUNCTION notify_big_sale()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_branch_id UUID;
+    v_organization_id UUID;
+BEGIN
+    IF NEW.total_amount > 5000 THEN
+        v_branch_id := NEW.branch_id;
+        
+        SELECT organization_id INTO v_organization_id 
+        FROM branches WHERE id = v_branch_id;
+        
+        INSERT INTO notifications (user_id, organization_id, branch_id, title, message, type)
+        SELECT id, v_organization_id, v_branch_id, 'Big Sale Achievement', 
+               'A new sale of ' || NEW.total_amount || ' EGP has been recorded!', 
+               'big_sale'
+        FROM profiles
+        WHERE ((permissions->>'can_view_reports')::boolean = true OR is_super_admin)
+          AND organization_id = v_organization_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_big_sale_notification
+AFTER INSERT ON sales
+FOR EACH ROW EXECUTE PROCEDURE notify_big_sale();
+
 -- ========================================================
 -- 7. ANALYTICS & VIEW FUNCTIONS
 -- ========================================================
@@ -321,7 +416,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ========================================================
--- 8. ROW LEVEL SECURITY (RLS) POLICIES
+-- 8. ROW LEVEL SECURITY (RLS)
 -- ========================================================
 
 -- Master RLS Enabler
@@ -334,99 +429,68 @@ BEGIN
   END LOOP;
 END $$;
 
--- General SELECT access for all authenticated users
-CREATE POLICY "Select access for all authenticated users" ON categories FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Select access for all authenticated users" ON warehouses FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Select access for all authenticated users" ON products FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Select access for all authenticated users" ON product_stocks FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Select access for all authenticated users" ON profiles FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Select access for all authenticated users" ON stock_movements FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Select access for all authenticated users" ON purchase_orders FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Select access for all authenticated users" ON purchase_order_items FOR SELECT TO authenticated USING (true);
+-- Helper Function for RLS
+CREATE OR REPLACE FUNCTION get_auth_profile()
+RETURNS TABLE (
+    is_super_admin BOOLEAN,
+    organization_id UUID,
+    branch_id UUID
+) AS $$
+BEGIN
+    RETURN QUERY SELECT p.is_super_admin, p.organization_id, p.branch_id 
+    FROM profiles p WHERE p.id = auth.uid();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- CRUD access for all authenticated users (Simplified for now - can be refined by role)
-CREATE POLICY "Full access for authenticated users on categories" ON categories FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Full access for authenticated users on warehouses" ON warehouses FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Full access for authenticated users on products" ON products FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Full access for authenticated users on profiles" ON profiles FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Full access for authenticated users on product_stocks" ON product_stocks FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Full access for authenticated users on stock_movements" ON stock_movements FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Full access for authenticated users on purchase_orders" ON purchase_orders FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Full access for authenticated users on purchase_order_items" ON purchase_order_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
+-- RLS Policies Examples (Hierarchy Support)
+-- Categories (Org level)
+DROP POLICY IF EXISTS "Multi-tenant access for categories" ON categories;
+CREATE POLICY "Multi-tenant access for categories" ON categories FOR ALL TO authenticated
+USING ( (SELECT is_super_admin FROM get_auth_profile()) OR (organization_id = (SELECT organization_id FROM get_auth_profile())) )
+WITH CHECK ( (SELECT is_super_admin FROM get_auth_profile()) OR (organization_id = (SELECT organization_id FROM get_auth_profile())) );
+
+-- Warehouses (Branch level)
+DROP POLICY IF EXISTS "Multi-tenant access for warehouses" ON warehouses;
+CREATE POLICY "Multi-tenant access for warehouses" ON warehouses FOR ALL TO authenticated
+USING ( (SELECT is_super_admin FROM get_auth_profile()) OR (organization_id = (SELECT organization_id FROM get_auth_profile()) AND (branch_id = (SELECT branch_id FROM get_auth_profile()) OR (SELECT branch_id FROM get_auth_profile()) IS NULL)) )
+WITH CHECK ( (SELECT is_super_admin FROM get_auth_profile()) OR (organization_id = (SELECT organization_id FROM get_auth_profile()) AND (branch_id = (SELECT branch_id FROM get_auth_profile()) OR (SELECT branch_id FROM get_auth_profile()) IS NULL)) );
+
+-- Products (Org level)
+DROP POLICY IF EXISTS "Multi-tenant access for products" ON products;
+CREATE POLICY "Multi-tenant access for products" ON products FOR ALL TO authenticated
+USING ( (SELECT is_super_admin FROM get_auth_profile()) OR (organization_id = (SELECT organization_id FROM get_auth_profile())) )
+WITH CHECK ( (SELECT is_super_admin FROM get_auth_profile()) OR (organization_id = (SELECT organization_id FROM get_auth_profile())) );
+
+-- Product Stocks (Branch level)
+DROP POLICY IF EXISTS "Multi-tenant access for product_stocks" ON product_stocks;
+CREATE POLICY "Multi-tenant access for product_stocks" ON product_stocks FOR ALL TO authenticated
+USING ( (SELECT is_super_admin FROM get_auth_profile()) OR (branch_id = (SELECT branch_id FROM get_auth_profile()) OR (SELECT branch_id FROM get_auth_profile()) IS NULL) )
+WITH CHECK ( (SELECT is_super_admin FROM get_auth_profile()) OR (branch_id = (SELECT branch_id FROM get_auth_profile()) OR (SELECT branch_id FROM get_auth_profile()) IS NULL) );
+
+-- Sales (Branch level)
+DROP POLICY IF EXISTS "Multi-tenant access for sales" ON sales;
+CREATE POLICY "Multi-tenant access for sales" ON sales FOR ALL TO authenticated
+USING ( (SELECT is_super_admin FROM get_auth_profile()) OR (branch_id = (SELECT branch_id FROM get_auth_profile())) )
+WITH CHECK ( (SELECT is_super_admin FROM get_auth_profile()) OR (branch_id = (SELECT branch_id FROM get_auth_profile())) );
+
+-- Purchase Orders (Branch level)
+DROP POLICY IF EXISTS "Multi-tenant access for purchase_orders" ON purchase_orders;
+CREATE POLICY "Multi-tenant access for purchase_orders" ON purchase_orders FOR ALL TO authenticated
+USING ( (SELECT is_super_admin FROM get_auth_profile()) OR (branch_id = (SELECT branch_id FROM get_auth_profile())) )
+WITH CHECK ( (SELECT is_super_admin FROM get_auth_profile()) OR (branch_id = (SELECT branch_id FROM get_auth_profile())) );
+
+-- Notifications (User level + Branch visibility)
+DROP POLICY IF EXISTS "Users can only see their own notifications" ON notifications;
+CREATE POLICY "Users can only see their own notifications" ON notifications FOR SELECT TO authenticated
+USING ( (auth.uid() = user_id) OR (SELECT is_super_admin FROM get_auth_profile()) );
 
 -- ========================================================
--- 9. NOTIFICATION SYSTEM
+-- 9. SEED DEFAULT DATA
 -- ========================================================
+INSERT INTO organizations (id, name, active)
+VALUES ('00000000-0000-0000-0000-000000000001', 'Default Organization', true)
+ON CONFLICT (id) DO NOTHING;
 
--- Notifications Table
-CREATE TABLE IF NOT EXISTS notifications (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  message TEXT NOT NULL,
-  type TEXT CHECK (type IN ('low_stock', 'big_sale', 'system')) NOT NULL,
-  is_read BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- RLS Policies for Notifications
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can only see their own notifications" 
-ON notifications FOR SELECT 
-TO authenticated 
-USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own notifications (mark as read)" 
-ON notifications FOR UPDATE 
-TO authenticated 
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
-
--- Triggers for Automatic Notifications
-
--- Low Stock Trigger
-CREATE OR REPLACE FUNCTION notify_low_stock()
-RETURNS TRIGGER AS $$
-DECLARE
-    p_name TEXT;
-BEGIN
-    IF NEW.quantity < 10 THEN
-        -- Get product name
-        SELECT name INTO p_name FROM products WHERE id = NEW.product_id;
-        
-        -- Insert notification for all admins and managers
-        INSERT INTO notifications (user_id, title, message, type)
-        SELECT id, 'Low Stock Alert', 'Product "' || p_name || '" is low on stock (' || NEW.quantity || ' remaining).', 'low_stock'
-        FROM profiles
-        WHERE role IN ('admin', 'manager');
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER tr_low_stock_notification
-AFTER INSERT OR UPDATE ON product_stocks
-FOR EACH ROW EXECUTE PROCEDURE notify_low_stock();
-
--- Big Sale Trigger
-CREATE OR REPLACE FUNCTION notify_big_sale()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.total_amount > 5000 THEN
-        -- Insert notification for all admins
-        INSERT INTO notifications (user_id, title, message, type)
-        SELECT id, 'Big Sale Achievement', 'A new sale of ' || NEW.total_amount || ' EGP has been recorded!', 'big_sale'
-        FROM profiles
-        WHERE role = 'admin';
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER tr_big_sale_notification
-AFTER INSERT ON sales
-FOR EACH ROW EXECUTE PROCEDURE notify_big_sale();
-
--- Performance Index
-CREATE INDEX idx_notifications_user_unread ON notifications(user_id, is_read);
+INSERT INTO branches (id, organization_id, name, location)
+VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'Main Branch', 'Default Location')
+ON CONFLICT (id) DO NOTHING;

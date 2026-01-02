@@ -1,16 +1,20 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { LoadingProvider } from "@/lib/loading-context";
+import { ClientContentWrapper } from "@/components/layout/client-content-wrapper";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     return (
-        <div className="flex h-screen overflow-hidden bg-background text-foreground w-full">
-            <Sidebar />
-            <div className="flex flex-col flex-1 overflow-hidden">
-                <Header />
-                <main className="flex-1 overflow-y-auto bg-muted/30 dark:bg-background overflow-x-auto">
-                    {children}
-                </main>
+        <LoadingProvider>
+            <div className="flex h-screen overflow-hidden bg-background text-foreground w-full">
+                <Sidebar />
+                <div className="flex flex-col flex-1 overflow-hidden">
+                    <Header />
+                    <ClientContentWrapper>
+                        {children}
+                    </ClientContentWrapper>
+                </div>
             </div>
-        </div>
+        </LoadingProvider>
     );
 }

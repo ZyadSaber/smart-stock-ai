@@ -1,13 +1,17 @@
 import { getInventoryData } from '@/services/inventory';
-import { createClient } from "@/utils/supabase/server";
 import { ProductDialog } from '@/components/inventory/product-dialog';
 import { InventoryTable } from '@/components/inventory/inventory-table';
 import { CategoriesManagementModal } from '@/components/inventory/categories-management-modal';
+import { resolvePageData } from '@/lib/page-utils';
 
-export default async function InventoryPage() {
-    const products = await getInventoryData();
-    const supabase = await createClient();
-    const { data: categories } = await supabase.from('categories').select('id, name');
+export default async function InventoryPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ organization_id?: string; branch_id?: string }>;
+}) {
+    const { products, categories } = await resolvePageData(searchParams, getInventoryData);
+
+
 
     return (
         <div className="p-8 space-y-6">
