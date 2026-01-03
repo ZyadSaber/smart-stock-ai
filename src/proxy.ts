@@ -37,11 +37,34 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("permissions")
+    .eq("id", user?.id ?? "")
+    .single();
+
+  const allPermissions = (profile?.permissions || {}) as Record<
+    string,
+    unknown
+  >;
+  const grantedPermissions = Object.keys(allPermissions).filter(
+    (key) => allPermissions[key] === true
+  );
+
+  const pathPart = request.nextUrl.pathname.split("/")[1];
   const isLoginPage = request.nextUrl.pathname === "/";
+  const publicPaths = ["", "welcome"];
+  const isAllowed =
+    publicPaths.includes(pathPart) || grantedPermissions.includes(pathPart);
 
   // الحالة أ: لو المستخدم مسجل وبيحاول يفتح صفحة الـ Login
   if (user && isLoginPage) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL("/welcome", request.url));
+  }
+
+  // الحالة ب: لو المستخدم مسجل وبيحاول يدخل صفحة معندوش صلاحية ليها
+  if (user && !isLoginPage && !isAllowed && pathPart !== "welcome") {
+    return NextResponse.rewrite(new URL("/404", request.url));
   }
 
   if (!user && !isLoginPage) {

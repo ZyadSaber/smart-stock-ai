@@ -4,7 +4,7 @@ import { AddUserDialog } from "@/components/users/AddUserDialog";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldAlert } from "lucide-react";
+import { AccessDenied } from "@/components/access-denied";
 import { OrganizationTable } from "@/components/users/OrganizationTable";
 import { AddOrganizationDialog } from "@/components/users/AddOrganizationDialog";
 
@@ -30,13 +30,7 @@ export default async function UsersPage() {
 
     if (!profile?.is_super_admin) {
         console.warn(`Unauthorized access attempt to Users page by user: ${authUser.id}`);
-        return (
-            <div className="flex h-[70vh] flex-col items-center justify-center space-y-4">
-                <ShieldAlert className="h-16 w-16 text-destructive opacity-50" />
-                <h2 className="text-2xl font-bold italic tracking-tight">Access Denied</h2>
-                <p className="text-muted-foreground">Only system administrators can manage users and permissions.</p>
-            </div>
-        );
+        return <AccessDenied />;
     }
 
     const users = await getUsers();

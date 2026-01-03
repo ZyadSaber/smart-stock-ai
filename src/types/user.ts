@@ -19,6 +19,7 @@ export interface UserProfile {
   organizations: { name: string };
   branch_id?: string;
   branches: { name: string };
+  default_page: string;
 }
 
 export interface Branches {

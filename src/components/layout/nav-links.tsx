@@ -3,6 +3,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, Box, Warehouse, ShoppingCart, Users, ArrowRight, CreditCard } from "lucide-react"
 import isObjectHasData from "@/lib/isObjectHasData"
+import { useSidebar } from "@/lib/sidebar-context"
+import { cn } from "@/lib/utils"
 
 const menuItems = [
     { name: 'Dashboard', icon: LayoutDashboard, href: 'dashboard' },
@@ -16,6 +18,7 @@ const menuItems = [
 
 export function NavLinks({ userRole }: { userRole?: Record<string, boolean> }) {
     const pathname = usePathname()
+    const { isCollapsed } = useSidebar()
 
     const computedItems = isObjectHasData(userRole) ? menuItems.filter(record => userRole![record.href]) : []
 
@@ -26,10 +29,17 @@ export function NavLinks({ userRole }: { userRole?: Record<string, boolean> }) {
                 const Icon = item.icon
                 return (
                     <Link key={item.href} href={`/${item.href}`}>
-                        <div className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent text-muted-foreground'
-                            }`}>
-                            <Icon className="h-5 w-5" />
-                            <span className="font-medium text-sm">{item.name}</span>
+                        <div className={cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+                            isActive ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-accent text-muted-foreground",
+                            isCollapsed && "px-2 justify-center gap-0"
+                        )}>
+                            <Icon className="h-5 w-5 shrink-0" />
+                            {!isCollapsed && (
+                                <span className="font-medium text-sm truncate animate-in fade-in slide-in-from-left-1 duration-300">
+                                    {item.name}
+                                </span>
+                            )}
                         </div>
                     </Link>
                 )
