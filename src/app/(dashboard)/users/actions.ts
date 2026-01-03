@@ -110,7 +110,7 @@ export async function createUserAction(formData: {
       id: authData.user.id,
       full_name: formData.full_name,
       is_super_admin: false,
-      ...getOrganizationDefaults(context), // Shared organization
+      // ...getOrganizationDefaults(context), // Shared organization
       permissions: {
         dashboard: true,
         inventory: true,

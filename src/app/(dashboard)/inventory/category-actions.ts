@@ -117,3 +117,57 @@ export async function deleteCategoryAction(id: string) {
   revalidatePath("/inventory");
   return { success: true };
 }
+
+export async function bulkCreateCategoriesAction(
+  categories: CategoryFormInput[]
+) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
+  const supabase = await createClient();
+  const orgDefaults = getOrganizationDefaults(context);
+
+  const validatedCategories = [];
+  const errors = [];
+
+  for (const category of categories) {
+    const validated = categorySchema.safeParse(category);
+    if (validated.success) {
+      validatedCategories.push({
+        ...validated.data,
+        ...orgDefaults,
+      });
+    } else {
+      errors.push(
+        `Category "${category.name || "Unknown"}": ${
+          validated.error.issues[0]?.message || "Invalid data"
+        }`
+      );
+    }
+  }
+
+  if (validatedCategories.length === 0) {
+    return { error: "No valid categories found to import.", details: errors };
+  }
+
+  const { error } = await supabase
+    .from("categories")
+    .insert(validatedCategories)
+    .select();
+
+  if (error) {
+    console.error(error);
+    return {
+      error: "Database error: Could not import categories.",
+      details: [error.message],
+    };
+  }
+
+  revalidatePath("/inventory");
+  return {
+    success: true,
+    count: validatedCategories.length,
+    skipped: errors.length,
+    details: errors,
+  };
+}

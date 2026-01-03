@@ -12,6 +12,9 @@ import { toast } from "sonner";
 import { useTransition, useState, useEffect } from "react";
 import { createCategoryAction, updateCategoryAction } from "@/app/(dashboard)/inventory/category-actions";
 
+import { ExcelImportModal } from "@/components/shared/excel-import-modal";
+import { bulkCreateCategoriesAction } from "@/app/(dashboard)/inventory/category-actions";
+
 interface Category {
     id: string;
     name: string;
@@ -80,6 +83,25 @@ export function CategoryDialog({
         });
     }
 
+    const handleExcelImport = (rawData: Record<string, unknown>[]) => {
+        startTransition(async () => {
+            const categoriesToImport = rawData.map(row => ({
+                name: (row.name || row.Name || row.category || row.Category || "") as string
+            }));
+
+            const result = await bulkCreateCategoriesAction(categoriesToImport);
+
+            if (result.error) {
+                toast.error(result.error, {
+                    description: result.details?.[0],
+                });
+            } else {
+                toast.success(`Successfully imported ${result.count} categories!`);
+                setOpen(false);
+            }
+        });
+    };
+
     const defaultTrigger = isEditMode ? (
         <Button variant="ghost" size="icon" className="h-8 w-8">
             <Pencil className="h-4 w-4" />
@@ -96,7 +118,18 @@ export function CategoryDialog({
             {!trigger && <DialogTrigger asChild>{defaultTrigger}</DialogTrigger>}
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>{isEditMode ? "Edit Category" : "Add New Category"}</DialogTitle>
+                    <div className="flex items-center justify-between pr-8">
+                        <DialogTitle>{isEditMode ? "Edit Category" : "Add New Category"}</DialogTitle>
+                        {!isEditMode && (
+                            <ExcelImportModal
+                                onDataImport={handleExcelImport}
+                                title="Import Categories"
+                                description="Upload an Excel file with category names."
+                                triggerButtonText="Import"
+                                triggerButtonClassName="h-8 py-0"
+                            />
+                        )}
+                    </div>
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

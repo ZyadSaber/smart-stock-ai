@@ -96,3 +96,55 @@ export async function deleteProductAction(id: string) {
   revalidatePath("/inventory");
   return { success: true };
 }
+
+export async function bulkCreateProductsAction(products: ProductFormInput[]) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
+  const supabase = await createClient();
+  const orgDefaults = getOrganizationDefaults(context);
+
+  const validatedProducts = [];
+  const errors = [];
+
+  for (const product of products) {
+    const validated = productSchema.safeParse(product);
+    if (validated.success) {
+      validatedProducts.push({
+        ...validated.data,
+        ...orgDefaults,
+      });
+    } else {
+      errors.push(
+        `Product "${product.name || "Unknown"}": ${
+          validated.error.issues[0]?.message || "Invalid data"
+        }`
+      );
+    }
+  }
+
+  if (validatedProducts.length === 0) {
+    return { error: "No valid products found to import.", details: errors };
+  }
+
+  const { error } = await supabase
+    .from("products")
+    .insert(validatedProducts)
+    .select();
+
+  if (error) {
+    console.error(error);
+    return {
+      error: "Database error: Could not import products.",
+      details: [error.message],
+    };
+  }
+
+  revalidatePath("/inventory");
+  return {
+    success: true,
+    count: validatedProducts.length,
+    skipped: errors.length,
+    details: errors,
+  };
+}
