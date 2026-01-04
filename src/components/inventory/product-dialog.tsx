@@ -16,6 +16,7 @@ import { ProductDialogProps } from "@/types/inventory";
 
 export function ProductDialog({
     categories,
+    warehouses,
     product,
     trigger,
     open: controlledOpen,
@@ -37,7 +38,9 @@ export function ProductDialog({
             barcode: product?.barcode || "",
             cost_price: product?.cost_price || 0,
             selling_price: product?.selling_price || 0,
-            category_id: product?.category_id || ""
+            category_id: product?.category_id || "",
+            initial_quantity: 0,
+            warehouse_id: warehouses?.[0]?.id || ""
         },
     });
 
@@ -49,7 +52,9 @@ export function ProductDialog({
                 barcode: product.barcode,
                 cost_price: product.cost_price,
                 selling_price: product.selling_price,
-                category_id: product.category_id
+                category_id: product.category_id,
+                initial_quantity: 0,
+                warehouse_id: ""
             });
         }
     }, [product, form]);
@@ -62,10 +67,12 @@ export function ProductDialog({
                 barcode: "",
                 cost_price: 0,
                 selling_price: 0,
-                category_id: ""
+                category_id: "",
+                initial_quantity: 0,
+                warehouse_id: warehouses?.[0]?.id || ""
             });
         }
-    }, [open, isEditMode, form]);
+    }, [open, isEditMode, form, warehouses]);
 
     async function onSubmit(values: ProductFormInput) {
         startTransition(async () => {
@@ -120,26 +127,69 @@ export function ProductDialog({
                             </FormItem>
                         )} />
 
-                        <FormField control={form.control} name="category_id" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Category</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value || undefined}>
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={form.control} name="category_id" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Category</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value || undefined}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {categories.map((cat) => (
+                                                <SelectItem key={cat.id} value={cat.id}>
+                                                    {cat.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+
+                            {!isEditMode && (
+                                <FormField control={form.control} name="warehouse_id" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Initial Warehouse</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value || undefined}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {warehouses?.map((w) => (
+                                                    <SelectItem key={w.id} value={w.id}>
+                                                        {w.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                            )}
+                        </div>
+
+                        {!isEditMode && (
+                            <FormField control={form.control} name="initial_quantity" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Initial Quantity</FormLabel>
                                     <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a category" />
-                                        </SelectTrigger>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            {...field}
+                                            value={String(field.value || 0)}
+                                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                        />
                                     </FormControl>
-                                    <SelectContent>
-                                        {categories.map((cat) => (
-                                            <SelectItem key={cat.id} value={cat.id}>
-                                                {cat.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                        )}
 
                         <div className="grid grid-cols-2 gap-4">
                             <FormField control={form.control} name="cost_price" render={({ field }) => (
@@ -200,4 +250,3 @@ export function ProductDialog({
         </Dialog>
     );
 }
-

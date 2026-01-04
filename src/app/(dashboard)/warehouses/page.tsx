@@ -1,6 +1,7 @@
 import { WarehouseDialog } from "@/components/warehouses/warehouse-dialog";
 import { WarehouseSummaryCards } from "@/components/warehouses/warehouse-summary-cards";
 import { StockMatrix } from "@/components/warehouses/stock-matrix";
+import { StockImportButton } from "@/components/warehouses/stock-import-button";
 import { getWarehousePageData } from "@/services/warehouses";
 import { resolvePageData } from "@/lib/page-utils";
 
@@ -14,8 +15,8 @@ export default async function WarehousesPage({ searchParams }: WarehousesPagePro
         products,
         stockMap,
         warehouseTotals,
+        lockedStocks,
     } = await resolvePageData(searchParams, getWarehousePageData);
-
 
 
     return (
@@ -25,7 +26,8 @@ export default async function WarehousesPage({ searchParams }: WarehousesPagePro
                     <h1 className="text-3xl font-bold tracking-tight">Warehouses</h1>
                     <p className="text-muted-foreground">Manage your warehouses and stock levels.</p>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                    <StockImportButton warehouses={warehouses} />
                     <WarehouseDialog />
                 </div>
             </div>
@@ -37,6 +39,7 @@ export default async function WarehousesPage({ searchParams }: WarehousesPagePro
                 products={products}
                 warehouses={warehouses}
                 stockMap={stockMap}
+                lockedStocks={lockedStocks}
             />
         </div>
     );

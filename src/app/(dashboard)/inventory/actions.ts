@@ -24,22 +24,50 @@ export async function createProductAction(values: ProductFormInput) {
     return { error: "Invalid fields provided." };
   }
 
-  const { error } = await supabase
+  const { data: product, error } = await supabase
     .from("products")
     .insert([
       {
-        ...validatedFields.data,
+        name: validatedFields.data.name,
+        barcode: validatedFields.data.barcode,
+        cost_price: validatedFields.data.cost_price,
+        selling_price: validatedFields.data.selling_price,
+        category_id: validatedFields.data.category_id,
         ...getOrganizationDefaults(context),
       },
     ])
-    .select();
+    .select()
+    .single();
 
   if (error) {
     console.error(error);
     return { error: "Database error: Could not create product." };
   }
 
+  // Handle initial quantity if provided
+  if (
+    validatedFields.data.initial_quantity &&
+    validatedFields.data.warehouse_id &&
+    product
+  ) {
+    const { getBranchDefaults } = await import("@/lib/tenant");
+    const { error: stockError } = await supabase.from("product_stocks").insert([
+      {
+        product_id: product.id,
+        warehouse_id: validatedFields.data.warehouse_id,
+        quantity: validatedFields.data.initial_quantity,
+        ...getBranchDefaults(context),
+      },
+    ]);
+
+    if (stockError) {
+      console.error("Failed to create initial stock:", stockError);
+      // We don't return error here because the product was created successfully
+    }
+  }
+
   revalidatePath("/inventory");
+  revalidatePath("/warehouses");
   return { success: true };
 }
 
@@ -127,7 +155,7 @@ export async function bulkCreateProductsAction(products: ProductFormInput[]) {
     return { error: "No valid products found to import.", details: errors };
   }
 
-  const { error } = await supabase
+  const { data: createdProducts, error } = await supabase
     .from("products")
     .insert(validatedProducts)
     .select();
@@ -140,7 +168,39 @@ export async function bulkCreateProductsAction(products: ProductFormInput[]) {
     };
   }
 
+  // Handle initial stock for bulk imports
+  if (createdProducts && createdProducts.length > 0) {
+    const stockToInsert = [];
+    const { getBranchDefaults } = await import("@/lib/tenant");
+    const branchDefaults = getBranchDefaults(context);
+
+    // We need to match created products back to their original input to get initial_quantity
+    // Using barcode as the matcher
+    for (const created of createdProducts) {
+      const original = products.find((p) => p.barcode === created.barcode);
+      if (original?.initial_quantity && original.warehouse_id) {
+        stockToInsert.push({
+          product_id: created.id,
+          warehouse_id: original.warehouse_id,
+          quantity: original.initial_quantity,
+          ...branchDefaults,
+        });
+      }
+    }
+
+    if (stockToInsert.length > 0) {
+      const { error: stockError } = await supabase
+        .from("product_stocks")
+        .insert(stockToInsert);
+
+      if (stockError) {
+        console.error("Bulk stock creation failed:", stockError);
+      }
+    }
+  }
+
   revalidatePath("/inventory");
+  revalidatePath("/warehouses");
   return {
     success: true,
     count: validatedProducts.length,

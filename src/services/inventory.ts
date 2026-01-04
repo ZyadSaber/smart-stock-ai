@@ -21,7 +21,10 @@ export async function getInventoryData(
     activeBranchId = context.branchId || undefined;
   }
 
-  let query = supabase.from("products").select(`
+  let query = supabase
+    .from("products")
+    .select(
+      `
       id,
       name,
       barcode,
@@ -30,7 +33,9 @@ export async function getInventoryData(
       category_id,
       categories (name),
       product_stocks (quantity, branch_id)
-    `);
+    `
+    )
+    .order("updated_at", { ascending: false });
 
   // Apply organization level filter
   if (context.isSuperAdmin && activeOrgId) {
@@ -103,9 +108,26 @@ export async function getInventoryData(
 
   const { data: categories } = await categoriesQuery.order("name");
 
+  // 3. Fetch Warehouses for initial stock
+  let warehousesQuery = supabase.from("warehouses").select("id, name");
+  if (context.isSuperAdmin && activeOrgId) {
+    // If super admin filtering by org, we need to know branches first
+    const { data: branches } = await supabase
+      .from("branches")
+      .select("id")
+      .eq("organization_id", activeOrgId);
+    const branchIds = branches?.map((b) => b.id) || [];
+    warehousesQuery = warehousesQuery.in("branch_id", branchIds);
+  } else {
+    const { applyBranchFilter } = await import("@/lib/tenant");
+    warehousesQuery = applyBranchFilter(warehousesQuery, context);
+  }
+  const { data: warehouses } = await warehousesQuery.order("name");
+
   return {
     products,
     categories: categories || [],
+    warehouses: warehouses || [],
     context,
   };
 }

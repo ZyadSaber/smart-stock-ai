@@ -15,9 +15,10 @@ interface StockMatrixProps {
     products: ProductWithStock[];
     warehouses: { id: string; name: string }[];
     stockMap: Map<string, number>;
+    lockedStocks: Set<string>;
 }
 
-export function StockMatrix({ products, warehouses, stockMap }: StockMatrixProps) {
+export function StockMatrix({ products, warehouses, stockMap, lockedStocks }: StockMatrixProps) {
     return (
         <Card>
             <CardHeader>
@@ -72,13 +73,19 @@ export function StockMatrix({ products, warehouses, stockMap }: StockMatrixProps
 
                                                 return (
                                                     <TableCell key={warehouse.id} className="text-center">
-                                                        <StockDialog
-                                                            productId={product.id}
-                                                            productName={product.name}
-                                                            warehouseId={warehouse.id}
-                                                            warehouseName={warehouse.name}
-                                                            currentQuantity={quantity}
-                                                        />
+                                                        {lockedStocks.has(key) ? (
+                                                            <Badge variant="outline" className="h-8 px-3 font-normal opacity-70 cursor-not-allowed" title="Transactions exist for this product/warehouse. Use adjustments to change stock.">
+                                                                {quantity}
+                                                            </Badge>
+                                                        ) : (
+                                                            <StockDialog
+                                                                productId={product.id}
+                                                                productName={product.name}
+                                                                warehouseId={warehouse.id}
+                                                                warehouseName={warehouse.name}
+                                                                currentQuantity={quantity}
+                                                            />
+                                                        )}
                                                     </TableCell>
                                                 );
                                             })}

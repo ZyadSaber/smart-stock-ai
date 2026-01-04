@@ -30,6 +30,7 @@ export interface InventoryTableProps {
 
 export interface ProductDialogProps {
   categories: Category[];
+  warehouses?: Category[];
   product?: EditableProduct;
   trigger?: ReactNode;
   open?: boolean;

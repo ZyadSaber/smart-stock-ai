@@ -128,6 +128,33 @@ export async function getWarehousePageData(searchParams: {
     } as WarehouseWithStats;
   });
 
+  // 6. Fetch stock movements to identify "locked" stocks
+  let movementsQuery = supabase
+    .from("stock_movements")
+    .select("product_id, from_warehouse_id, to_warehouse_id");
+
+  if (context.isSuperAdmin) {
+    if (activeBranchId) {
+      movementsQuery = movementsQuery.eq("branch_id", activeBranchId);
+    } else if (activeOrgId) {
+      const org = organizations.find((o) => o.id === activeOrgId);
+      const branchIds = org?.branches?.map((b) => b.id) || [];
+      movementsQuery = movementsQuery.in("branch_id", branchIds);
+    }
+  } else {
+    movementsQuery = applyBranchFilter(movementsQuery, context);
+  }
+
+  const { data: movementsData } = await movementsQuery;
+  const lockedStocks = new Set<string>();
+
+  (movementsData || []).forEach((m) => {
+    if (m.from_warehouse_id)
+      lockedStocks.add(`${m.product_id}-${m.from_warehouse_id}`);
+    if (m.to_warehouse_id)
+      lockedStocks.add(`${m.product_id}-${m.to_warehouse_id}`);
+  });
+
   return {
     context,
     organizations,
@@ -137,5 +164,6 @@ export async function getWarehousePageData(searchParams: {
     warehouseTotals,
     activeOrgId,
     activeBranchId,
+    lockedStocks,
   };
 }

@@ -9,6 +9,8 @@ export const productSchema = z
     selling_price: z.coerce
       .number()
       .min(0.01, "Selling price must be greater than 0"),
+    initial_quantity: z.coerce.number().min(0).optional(),
+    warehouse_id: z.string().optional(),
   })
   .refine((data) => data.selling_price >= data.cost_price, {
     message: "Selling price cannot be less than cost price",

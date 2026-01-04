@@ -9,26 +9,29 @@ import { bulkCreateProductsAction } from "@/app/(dashboard)/inventory/actions";
 
 interface InventoryHeaderProps {
     categories: { id: string; name: string }[];
+    warehouses: { id: string; name: string }[];
 }
 
-export function InventoryHeader({ categories }: InventoryHeaderProps) {
+export function InventoryHeader({ categories, warehouses }: InventoryHeaderProps) {
     const [isPending, startTransition] = useTransition();
 
     const handleExcelImport = (rawData: Record<string, unknown>[]) => {
         startTransition(async () => {
-            // Map the raw data to match the product schema
-            // We'll try to guess based on common column names
             const productsToImport = rawData.map(row => {
-                // Find category ID by name if provided
                 const categoryName = (row.category || row.Category || row.department || "") as string;
                 const category = categories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
+
+                const warehouseName = (row.warehouse || row.Warehouse || "") as string;
+                const warehouse = warehouses.find(w => w.name.toLowerCase() === warehouseName.toLowerCase());
 
                 return {
                     name: (row.name || row.Name || row.product || row.Product || "") as string,
                     barcode: String(row.barcode || row.Barcode || row.sku || row.SKU || ""),
                     cost_price: Number(row.cost_price || row.Cost || row.cost || 0),
                     selling_price: Number(row.selling_price || row.Price || row.price || 0),
-                    category_id: category?.id || categories[0]?.id || "" // Fallback to first category if not found
+                    category_id: category?.id || categories[0]?.id || "",
+                    initial_quantity: Number(row.quantity || row.Quantity || row.stock || row.Stock || 0),
+                    warehouse_id: warehouse?.id || warehouses[0]?.id || ""
                 };
             });
 
@@ -62,7 +65,7 @@ export function InventoryHeader({ categories }: InventoryHeaderProps) {
                     triggerButtonClassName={isPending ? "opacity-50 pointer-events-none" : ""}
                 />
                 <CategoriesManagementModal categories={categories} />
-                <ProductDialog categories={categories} />
+                <ProductDialog categories={categories} warehouses={warehouses} />
             </div>
         </div>
     );

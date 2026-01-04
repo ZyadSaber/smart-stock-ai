@@ -8,11 +8,15 @@ export default async function InventoryPage({
 }: {
     searchParams: Promise<{ organization_id?: string; branch_id?: string }>;
 }) {
-    const { products, categories } = await resolvePageData(searchParams, getInventoryData);
+    const {
+        products,
+        categories,
+        warehouses,
+    } = await resolvePageData(searchParams, getInventoryData);
 
     return (
         <div className="p-8 space-y-6">
-            <InventoryHeader categories={categories || []} />
+            <InventoryHeader categories={categories || []} warehouses={warehouses || []} />
 
             <InventoryTable products={products} categories={categories || []} />
         </div>

@@ -181,6 +181,104 @@ export async function updateStockAction(
   return { success: true };
 }
 
+export async function bulkUpdateStockAction(
+  updates: {
+    barcode?: string;
+    product_id?: string;
+    warehouse_id: string;
+    quantity: number;
+  }[]
+) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
+  const supabase = await createClient();
+  const branchDefaults = getBranchDefaults(context);
+
+  const results = {
+    success: 0,
+    errors: [] as string[],
+  };
+
+  for (const update of updates) {
+    try {
+      let productId = update.product_id;
+
+      // If barcode is provided, find the product ID
+      if (!productId && update.barcode) {
+        const { data: product } = await supabase
+          .from("products")
+          .select("id")
+          .eq("barcode", update.barcode)
+          .maybeSingle();
+
+        if (product) {
+          productId = product.id;
+        } else {
+          results.errors.push(
+            `Product with barcode "${update.barcode}" not found.`
+          );
+          continue;
+        }
+      }
+
+      if (!productId) {
+        results.errors.push(
+          `No product identified for an update in warehouse ${update.warehouse_id}.`
+        );
+        continue;
+      }
+
+      // Logic from updateStockAction
+      let checkQuery = supabase
+        .from("product_stocks")
+        .select("id")
+        .eq("product_id", productId)
+        .eq("warehouse_id", update.warehouse_id);
+
+      checkQuery = applyBranchFilter(checkQuery, context);
+      const { data: existingStock } = await checkQuery.maybeSingle();
+
+      if (existingStock) {
+        let updateQuery = supabase
+          .from("product_stocks")
+          .update({ quantity: update.quantity })
+          .eq("id", existingStock.id);
+
+        const { error } = await updateQuery;
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("product_stocks").insert([
+          {
+            product_id: productId,
+            warehouse_id: update.warehouse_id,
+            quantity: update.quantity,
+            ...branchDefaults,
+          },
+        ]);
+        if (error) throw error;
+      }
+      results.success++;
+    } catch (err: any) {
+      console.error(err);
+      results.errors.push(
+        `Error updating stock for ${update.product_id || update.barcode}: ${
+          err.message
+        }`
+      );
+    }
+  }
+
+  revalidatePath("/warehouses");
+  revalidatePath("/inventory");
+
+  return {
+    success: results.success > 0,
+    count: results.success,
+    errors: results.errors,
+  };
+}
+
 export async function getAllWarehousesValuation(
   searchParams: { organization_id?: string; branch_id?: string } = {}
 ) {
