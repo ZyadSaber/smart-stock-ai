@@ -6,22 +6,29 @@ import { toast } from "sonner";
 import { useTransition } from "react";
 
 interface StockImportButtonProps {
-    warehouses: { id: string; name: string }[];
+    warehouseId: string;
+    warehouseName: string
 }
 
-export function StockImportButton({ warehouses }: StockImportButtonProps) {
+export function StockImportButton({
+    warehouseId,
+    warehouseName
+}: StockImportButtonProps) {
     const [isPending, startTransition] = useTransition();
 
     const handleImport = (rawData: Record<string, unknown>[]) => {
         startTransition(async () => {
             const updates = rawData.map(row => {
-                const warehouseName = (row.warehouse || row.Warehouse || row.store || row.Store || "") as string;
-                const warehouse = warehouses.find(w => w.name.toLowerCase() === warehouseName.toLowerCase());
+                // Map fields robustly
+                const productId = (row.product_id || row.productId || row.id || "") as string;
+                const barcode = (row.barcode || row.Barcode || row.sku || row.SKU || "") as string;
+                const quantity = Number(row.quantity || row.Quantity || row.stock || row.Stock || 0);
 
                 return {
-                    barcode: String(row.barcode || row.Barcode || row.sku || row.SKU || ""),
-                    warehouse_id: warehouse?.id || warehouses[0]?.id || "",
-                    quantity: Number(row.quantity || row.Quantity || row.stock || row.Stock || 0)
+                    product_id: productId,
+                    barcode: barcode,
+                    quantity: quantity,
+                    warehouse_id: warehouseId,
                 };
             });
 
@@ -44,8 +51,8 @@ export function StockImportButton({ warehouses }: StockImportButtonProps) {
     return (
         <ExcelImportModal
             onDataImport={handleImport}
-            title="Import Stock Levels"
-            description="Upload an Excel file with Barcode, Warehouse Name, and Quantity."
+            title={`Import Stock: ${warehouseName}`}
+            description="Upload an Excel file with Barcode and Quantity."
             triggerButtonText="Import Stock"
             triggerButtonClassName={isPending ? "opacity-50 pointer-events-none" : ""}
         />

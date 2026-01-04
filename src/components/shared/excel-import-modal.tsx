@@ -31,6 +31,8 @@ interface ExcelImportModalProps {
     description?: string;
     triggerButtonText?: string;
     triggerButtonClassName?: string;
+    triggerButtonVariant?: "default" | "outline" | "ghost" | "link" | "destructive" | "secondary";
+    triggerButtonSize?: "default" | "sm" | "lg" | "icon";
 }
 
 type ImportState = {
@@ -46,6 +48,8 @@ export function ExcelImportModal({
     description = "Upload an Excel file to preview and import your data.",
     triggerButtonText = "Import Excel",
     triggerButtonClassName,
+    triggerButtonVariant = "outline",
+    triggerButtonSize = "default",
 }: ExcelImportModalProps) {
     const { formData, resetForm, handleFieldChange } = useFormManager<ImportState>({
         initialData: {
@@ -118,7 +122,7 @@ export function ExcelImportModal({
             if (!open) resetState();
         }}>
             <DialogTrigger asChild>
-                <Button variant="outline" className={cn("gap-2", triggerButtonClassName)}>
+                <Button variant={triggerButtonVariant} size={triggerButtonSize} className={cn(triggerButtonText && "gap-2", triggerButtonClassName)}>
                     <FileSpreadsheet className="h-4 w-4" />
                     {triggerButtonText}
                 </Button>

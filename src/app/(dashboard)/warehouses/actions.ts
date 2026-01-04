@@ -183,10 +183,10 @@ export async function updateStockAction(
 
 export async function bulkUpdateStockAction(
   updates: {
-    barcode?: string;
     product_id?: string;
     warehouse_id: string;
     quantity: number;
+    barcode?: string;
   }[]
 ) {
   const context = await getTenantContext();
@@ -205,7 +205,7 @@ export async function bulkUpdateStockAction(
       let productId = update.product_id;
 
       // If barcode is provided, find the product ID
-      if (!productId && update.barcode) {
+      if (!productId) {
         const { data: product } = await supabase
           .from("products")
           .select("id")
@@ -245,6 +245,8 @@ export async function bulkUpdateStockAction(
           .update({ quantity: update.quantity })
           .eq("id", existingStock.id);
 
+        updateQuery = applyBranchFilter(updateQuery, context);
+
         const { error } = await updateQuery;
         if (error) throw error;
       } else {
@@ -259,12 +261,13 @@ export async function bulkUpdateStockAction(
         if (error) throw error;
       }
       results.success++;
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
       results.errors.push(
-        `Error updating stock for ${update.product_id || update.barcode}: ${
-          err.message
-        }`
+        `Error updating stock for ${
+          update.product_id || update.barcode
+        }: ${errorMessage}`
       );
     }
   }
