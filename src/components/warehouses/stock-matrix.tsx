@@ -15,10 +15,9 @@ interface StockMatrixProps {
     products: ProductWithStock[];
     warehouses: { id: string; name: string }[];
     stockMap: Map<string, number>;
-    lockedStocks: Set<string>;
 }
 
-export function StockMatrix({ products, warehouses, stockMap, lockedStocks }: StockMatrixProps) {
+export function StockMatrix({ products, warehouses, stockMap }: StockMatrixProps) {
     return (
         <Card>
             <CardHeader>
@@ -73,7 +72,7 @@ export function StockMatrix({ products, warehouses, stockMap, lockedStocks }: St
 
                                                 return (
                                                     <TableCell key={warehouse.id} className="text-center">
-                                                        {lockedStocks.has(key) ? (
+                                                        {product.has_movement ? (
                                                             <Badge variant="outline" className="h-8 px-3 font-normal opacity-70 cursor-not-allowed" title="Transactions exist for this product/warehouse. Use adjustments to change stock.">
                                                                 {quantity}
                                                             </Badge>

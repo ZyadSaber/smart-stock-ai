@@ -494,3 +494,19 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO branches (id, organization_id, name, location)
 VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'Main Branch', 'Default Location')
 ON CONFLICT (id) DO NOTHING;
+
+-- ========================================================
+-- 10. VIEWS
+-- ========================================================
+CREATE OR REPLACE VIEW warehouse_stock_summary AS
+SELECT 
+  w.id,
+  w.name,
+  w.location,
+  w.branch_id,
+  w.organization_id,
+  COUNT(ps.product_id) AS total_products,      -- Count of unique items
+  COALESCE(SUM(ps.quantity), 0) AS items_quantity -- Total sum of all stock
+FROM warehouses w
+LEFT JOIN product_stocks ps ON w.id = ps.warehouse_id
+GROUP BY w.id;

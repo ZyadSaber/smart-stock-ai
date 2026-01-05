@@ -1,9 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import {
-  getTenantContext,
-  applyBranchFilter,
-  applyOrganizationFilter,
-} from "@/lib/tenant";
+import { getTenantContext, applyOrganizationFilter } from "@/lib/tenant";
 
 import { getOrganizationsWithBranches } from "@/app/(dashboard)/users/actions";
 
@@ -11,14 +7,16 @@ export interface WarehouseWithStats {
   id: string;
   name: string;
   location: string | null;
-  totalItems: number;
-  totalQuantity: number;
+  branch_id: string | null;
+  items_quantity: number;
+  total_products: number;
 }
 
 export interface ProductWithStock {
   id: string;
   name: string;
   barcode: string | null;
+  has_movement: boolean;
 }
 
 export async function getWarehousePageData(searchParams: {
@@ -30,9 +28,6 @@ export async function getWarehousePageData(searchParams: {
 
   const supabase = await createClient();
 
-  // Determine effectively active filters
-  // For Super Admins: we ONLY use searchParams. If missing, they see everything.
-  // For Regular Users: we use their profile-fixed IDs.
   let activeOrgId: string | undefined = undefined;
   let activeBranchId: string | undefined = undefined;
 
@@ -51,8 +46,17 @@ export async function getWarehousePageData(searchParams: {
 
   // 1. Fetch warehouses
   let warehousesQuery = supabase
-    .from("warehouses")
-    .select("id, name, location, branch_id")
+    .from("warehouse_stock_summary")
+    .select(
+      `
+      id, 
+      name, 
+      location, 
+      branch_id, 
+      total_products,
+      items_quantity
+      `
+    )
     .order("name");
 
   if (context.isSuperAdmin) {
@@ -64,7 +68,10 @@ export async function getWarehousePageData(searchParams: {
       warehousesQuery = warehousesQuery.in("branch_id", branchIds);
     }
   } else {
-    warehousesQuery = applyBranchFilter(warehousesQuery, context);
+    warehousesQuery = applyOrganizationFilter(warehousesQuery, context);
+    warehousesQuery = warehousesQuery.or(
+      `branch_id.is.null,branch_id.eq.${context.branchId}`
+    );
   }
   const { data: warehousesData } = await warehousesQuery;
   const warehouses = warehousesData || [];
@@ -72,7 +79,8 @@ export async function getWarehousePageData(searchParams: {
   // 2. Fetch products
   let productsQuery = supabase
     .from("products")
-    .select("id, name, barcode, organization_id")
+    .select("id, name, barcode, organization_id, stock_movements (id)")
+    .limit(1, { foreignTable: "stock_movements" })
     .order("name");
 
   if (context.isSuperAdmin && activeOrgId) {
@@ -81,24 +89,19 @@ export async function getWarehousePageData(searchParams: {
     productsQuery = applyOrganizationFilter(productsQuery, context);
   }
   const { data: productsData } = await productsQuery;
-  const products = productsData || [];
+  const products = (productsData || []).map((product) => ({
+    ...product,
+    has_movement: product.stock_movements.length > 0,
+  }));
+
+  const warehouseIds = warehouses.map((w) => w.id);
 
   // 3. Fetch stock data
-  let stocksQuery = supabase
+  const stocksQuery = supabase
     .from("product_stocks")
-    .select("product_id, warehouse_id, quantity, branch_id");
+    .select("product_id, warehouse_id, quantity, branch_id")
+    .in("warehouse_id", warehouseIds);
 
-  if (context.isSuperAdmin) {
-    if (activeBranchId) {
-      stocksQuery = stocksQuery.eq("branch_id", activeBranchId);
-    } else if (activeOrgId) {
-      const org = organizations.find((o) => o.id === activeOrgId);
-      const branchIds = org?.branches?.map((b) => b.id) || [];
-      stocksQuery = stocksQuery.in("branch_id", branchIds);
-    }
-  } else {
-    stocksQuery = applyBranchFilter(stocksQuery, context);
-  }
   const { data: stocksData } = await stocksQuery;
   const stocks = stocksData || [];
 
@@ -109,61 +112,9 @@ export async function getWarehousePageData(searchParams: {
     stockMap.set(key, stock.quantity);
   });
 
-  // 5. Calculate totals for each warehouse
-  const warehouseTotals = warehouses.map((warehouse) => {
-    const warehouseStocks = stocks.filter(
-      (s) => s.warehouse_id === warehouse.id
-    );
-    const totalItems = warehouseStocks.length;
-    const totalQuantity = warehouseStocks.reduce(
-      (sum, s) => sum + s.quantity,
-      0
-    );
-    return {
-      id: warehouse.id,
-      name: warehouse.name,
-      location: warehouse.location,
-      totalItems,
-      totalQuantity,
-    } as WarehouseWithStats;
-  });
-
-  // 6. Fetch stock movements to identify "locked" stocks
-  let movementsQuery = supabase
-    .from("stock_movements")
-    .select("product_id, from_warehouse_id, to_warehouse_id");
-
-  if (context.isSuperAdmin) {
-    if (activeBranchId) {
-      movementsQuery = movementsQuery.eq("branch_id", activeBranchId);
-    } else if (activeOrgId) {
-      const org = organizations.find((o) => o.id === activeOrgId);
-      const branchIds = org?.branches?.map((b) => b.id) || [];
-      movementsQuery = movementsQuery.in("branch_id", branchIds);
-    }
-  } else {
-    movementsQuery = applyBranchFilter(movementsQuery, context);
-  }
-
-  const { data: movementsData } = await movementsQuery;
-  const lockedStocks = new Set<string>();
-
-  (movementsData || []).forEach((m) => {
-    if (m.from_warehouse_id)
-      lockedStocks.add(`${m.product_id}-${m.from_warehouse_id}`);
-    if (m.to_warehouse_id)
-      lockedStocks.add(`${m.product_id}-${m.to_warehouse_id}`);
-  });
-
   return {
-    context,
-    organizations,
     warehouses,
     products,
     stockMap,
-    warehouseTotals,
-    activeOrgId,
-    activeBranchId,
-    lockedStocks,
   };
 }

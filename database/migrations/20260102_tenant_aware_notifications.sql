@@ -32,8 +32,8 @@ BEGIN
                'low_stock', 
                v_branch_id
         FROM profiles
-        WHERE role IN ('admin', 'manager')
-          AND organization_id = v_organization_id;
+        -- WHERE role IN ('admin', 'manager')
+          WHERE organization_id = v_organization_id;
     END IF;
     RETURN NEW;
 END;
@@ -61,8 +61,8 @@ BEGIN
                'big_sale',
                v_branch_id
         FROM profiles
-        WHERE role = 'admin'
-          AND organization_id = v_organization_id;
+        -- WHERE role = 'admin'
+          WHERE organization_id = v_organization_id;
     END IF;
     RETURN NEW;
 END;

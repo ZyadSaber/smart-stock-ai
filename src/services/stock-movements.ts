@@ -90,7 +90,10 @@ export async function getStockMovementsPageData(
       warehousesQuery = warehousesQuery.in("branch_id", branchIds);
     }
   } else {
-    warehousesQuery = applyBranchFilter(warehousesQuery, context);
+    warehousesQuery = applyOrganizationFilter(warehousesQuery, context);
+    warehousesQuery = warehousesQuery.or(
+      `branch_id.is.null,branch_id.eq.${context.branchId}`
+    );
   }
   const { data: warehouses } = await warehousesQuery;
 

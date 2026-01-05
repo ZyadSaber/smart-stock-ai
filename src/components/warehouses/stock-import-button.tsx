@@ -53,8 +53,10 @@ export function StockImportButton({
             onDataImport={handleImport}
             title={`Import Stock: ${warehouseName}`}
             description="Upload an Excel file with Barcode and Quantity."
-            triggerButtonText="Import Stock"
+            triggerButtonText=""
             triggerButtonClassName={isPending ? "opacity-50 pointer-events-none" : ""}
+            triggerButtonSize="icon"
+            triggerButtonVariant="ghost"
         />
     );
 }

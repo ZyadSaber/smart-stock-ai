@@ -26,27 +26,15 @@ export async function createStockMovementAction(
     return { error: "Invalid fields provided." };
   }
 
-  // Get current user - Replaced by context.userId
-  // const {
-  //   data: { user },
-  // } = await supabase.auth.getUser();
-
-  // if (!user) {
-  //   return { error: "User not authenticated." };
-  // }
-
-  // Check if source warehouse has enough stock
   if (
     validatedFields.data.from_warehouse_id &&
     validatedFields.data.from_warehouse_id !== "none"
   ) {
-    let stockQuery = supabase
+    const stockQuery = supabase
       .from("product_stocks")
       .select("quantity")
       .eq("product_id", validatedFields.data.product_id)
       .eq("warehouse_id", validatedFields.data.from_warehouse_id);
-
-    stockQuery = applyBranchFilter(stockQuery, context);
 
     const { data: stock } = await stockQuery.maybeSingle();
 

@@ -1,7 +1,6 @@
 import { WarehouseDialog } from "@/components/warehouses/warehouse-dialog";
 import { WarehouseSummaryCards } from "@/components/warehouses/warehouse-summary-cards";
 import { StockMatrix } from "@/components/warehouses/stock-matrix";
-
 import { getWarehousePageData } from "@/services/warehouses";
 import { resolvePageData } from "@/lib/page-utils";
 
@@ -14,8 +13,6 @@ export default async function WarehousesPage({ searchParams }: WarehousesPagePro
         warehouses,
         products,
         stockMap,
-        warehouseTotals,
-        lockedStocks,
     } = await resolvePageData(searchParams, getWarehousePageData);
 
 
@@ -32,13 +29,12 @@ export default async function WarehousesPage({ searchParams }: WarehousesPagePro
             </div>
 
 
-            <WarehouseSummaryCards warehouses={warehouseTotals} />
+            <WarehouseSummaryCards warehouses={warehouses} />
 
             <StockMatrix
                 products={products}
                 warehouses={warehouses}
                 stockMap={stockMap}
-                lockedStocks={lockedStocks}
             />
         </div>
     );

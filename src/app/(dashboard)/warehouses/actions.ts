@@ -24,14 +24,23 @@ export async function createWarehouseAction(values: WarehouseFormInput) {
     return { error: "Invalid fields provided." };
   }
 
+  const { is_shared, ...otherData } = validatedFields.data;
+
+  // Prepare payload
+  const payload: Record<string, unknown> = {
+    ...otherData,
+    organization_id: context.organizationId,
+  };
+
+  if (is_shared) {
+    payload.branch_id = null;
+  } else {
+    Object.assign(payload, getBranchDefaults(context));
+  }
+
   const { error } = await supabase
     .from("warehouses")
-    .insert([
-      {
-        ...validatedFields.data,
-        ...getBranchDefaults(context),
-      },
-    ])
+    .insert([payload])
     .select();
 
   if (error) {
@@ -58,11 +67,21 @@ export async function updateWarehouseAction(
     return { error: "Invalid fields provided." };
   }
 
-  let query = supabase
-    .from("warehouses")
-    .update(validatedFields.data)
-    .eq("id", id);
-  query = applyBranchFilter(query, context);
+  const { is_shared, ...otherData } = validatedFields.data;
+
+  const payload: Record<string, unknown> = {
+    ...otherData,
+  };
+
+  if (is_shared) {
+    payload.branch_id = null;
+  } else {
+    Object.assign(payload, getBranchDefaults(context));
+  }
+
+  console.log(payload, getBranchDefaults(context), id);
+
+  const query = supabase.from("warehouses").update(payload).eq("id", id);
 
   const { error } = await query.select();
 
@@ -103,8 +122,7 @@ export async function deleteWarehouseAction(id: string) {
     };
   }
 
-  let deleteQuery = supabase.from("warehouses").delete().eq("id", id);
-  deleteQuery = applyBranchFilter(deleteQuery, context);
+  const deleteQuery = supabase.from("warehouses").delete().eq("id", id);
 
   const { error } = await deleteQuery;
 

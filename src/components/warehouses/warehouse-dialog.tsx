@@ -4,9 +4,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { warehouseSchema, type WarehouseFormInput } from "@/lib/validations/warehouse";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { PlusCircle, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useTransition, useState, useEffect } from "react";
@@ -16,6 +17,7 @@ interface Warehouse {
     id: string;
     name: string;
     location?: string | null;
+    branch_id?: string | null;
 }
 
 interface WarehouseDialogProps {
@@ -34,6 +36,7 @@ export function WarehouseDialog({ warehouse, trigger }: WarehouseDialogProps) {
         defaultValues: {
             name: warehouse?.name || "",
             location: warehouse?.location || "",
+            is_shared: warehouse?.branch_id === null || false,
         },
     });
 
@@ -43,6 +46,7 @@ export function WarehouseDialog({ warehouse, trigger }: WarehouseDialogProps) {
             form.reset({
                 name: warehouse.name,
                 location: warehouse.location || "",
+                is_shared: warehouse.branch_id === null,
             });
         }
     }, [warehouse, form]);
@@ -53,6 +57,7 @@ export function WarehouseDialog({ warehouse, trigger }: WarehouseDialogProps) {
             form.reset({
                 name: "",
                 location: "",
+                is_shared: false,
             });
         }
     }, [open, isEditMode, form]);
@@ -113,6 +118,27 @@ export function WarehouseDialog({ warehouse, trigger }: WarehouseDialogProps) {
                                 <FormMessage />
                             </FormItem>
                         )} />
+
+                        <FormField
+                            control={form.control}
+                            name="is_shared"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                    <div className="space-y-0.5">
+                                        <FormLabel>Shared Warehouse</FormLabel>
+                                        <FormDescription>
+                                            Accessible from all branches in your organization
+                                        </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
 
                         <Button type="submit" className="w-full" disabled={isPending}>
                             {isPending ? (

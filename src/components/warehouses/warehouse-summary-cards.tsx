@@ -15,7 +15,14 @@ export function WarehouseSummaryCards({ warehouses }: WarehouseSummaryCardsProps
                 <Card key={warehouse.id}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <div>
-                            <CardTitle className="text-lg font-semibold">{warehouse.name}</CardTitle>
+                            <div className="flex items-center gap-2">
+                                <CardTitle className="text-lg font-semibold">{warehouse.name}</CardTitle>
+                                {warehouse.branch_id === null && (
+                                    <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                                        Shared
+                                    </span>
+                                )}
+                            </div>
                             <CardDescription className="text-xs">
                                 {warehouse.id}
                             </CardDescription>
@@ -23,7 +30,6 @@ export function WarehouseSummaryCards({ warehouses }: WarehouseSummaryCardsProps
                         <div className="flex gap-1">
                             <StockImportButton
                                 warehouseId={warehouse.id}
-                                variant="ghost"
                                 warehouseName={warehouse.name}
                             />
                             <WarehouseDialog warehouse={warehouse} />
@@ -40,16 +46,17 @@ export function WarehouseSummaryCards({ warehouses }: WarehouseSummaryCardsProps
                         <div className="flex gap-4 text-sm">
                             <div>
                                 <p className="text-muted-foreground">Products</p>
-                                <p className="text-2xl font-bold">{warehouse.totalItems}</p>
+                                <p className="text-2xl font-bold">{warehouse.total_products}</p>
                             </div>
                             <div>
                                 <p className="text-muted-foreground">Total Units</p>
-                                <p className="text-2xl font-bold">{warehouse.totalQuantity}</p>
+                                <p className="text-2xl font-bold">{warehouse.items_quantity}</p>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
-            ))}
-        </div>
+            ))
+            }
+        </div >
     );
 }
