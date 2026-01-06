@@ -10,58 +10,26 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, Trash2, Loader2 } from "lucide-react";
-import { Fragment, useState, useTransition } from "react";
-import { deletePurchaseOrderAction, getPurchaseOrderItems } from "@/app/(dashboard)/purchases/actions";
-import { toast } from "sonner";
-import { PurchaseItemsTable } from "./PurchaseItemsTable";
-
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { Fragment, useState } from "react";
 import { cn, formatEGP } from "@/lib/utils";
-import { PurchaseOrder, PurchaseOrderItem } from "@/types/purchases";
+import { PurchaseOrder } from "@/types/purchases";
+import DeleteDialog from "@/components/shared/delete-dialog";
+import { AddItemDialog } from "./AddItemDialog"
+import { deletePurchaseOrderAction } from "@/app/(dashboard)/purchases/actions"
+import { PurchaseItemsTable } from "./PurchaseItemsTable";
+import { PurchaseProduct, Warehouse } from "@/types/purchases";
 
 interface PurchaseHistoryTableProps {
     initialPurchaseOrders: PurchaseOrder[];
+    products: PurchaseProduct[];
+    warehouses: Warehouse[];
 }
 
-export function PurchaseHistoryTable({ initialPurchaseOrders }: PurchaseHistoryTableProps) {
+export function PurchaseHistoryTable({ initialPurchaseOrders, products, warehouses }: PurchaseHistoryTableProps) {
     const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-    const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
-    const [orderItems, setOrderItems] = useState<Record<string, PurchaseOrderItem[]>>({});
-
-    const [isDeleting, startDeleteTransition] = useTransition();
-    const [deletingId, setDeletingId] = useState<string | null>(null);
-
     const toggleRow = async (orderId: string) => {
-        // Toggle state
         setExpandedRows(prev => ({ ...prev, [orderId]: !prev[orderId] }));
-
-        // If opening and no items loaded yet
-        if (!expandedRows[orderId] && !orderItems[orderId]) {
-            setLoadingItems(prev => ({ ...prev, [orderId]: true }));
-            try {
-                const items = await getPurchaseOrderItems(orderId);
-                setOrderItems(prev => ({ ...prev, [orderId]: items as PurchaseOrderItem[] }));
-            } catch {
-                toast.error("Failed to load details");
-            } finally {
-                setLoadingItems(prev => ({ ...prev, [orderId]: false }));
-            }
-        }
-    };
-
-    const handleDeleteInvoice = (orderId: string) => {
-        if (confirm("Are you sure you want to delete this entire invoice? This action cannot be undone.")) {
-            setDeletingId(orderId);
-            startDeleteTransition(async () => {
-                const result = await deletePurchaseOrderAction(orderId);
-                if (result.error) {
-                    toast.error(result.error);
-                } else {
-                    toast.success("Purchase order deleted");
-                }
-                setDeletingId(null);
-            });
-        }
     };
 
     return (
@@ -118,34 +86,17 @@ export function PurchaseHistoryTable({ initialPurchaseOrders }: PurchaseHistoryT
                                         <span title={order.notes || '-'}>{order.notes || '-'}</span>
                                     </TableCell>
                                     <TableCell className="text-sm">
-                                        {order.created_by_user?.full_name || 'Unknown'}
+                                        {order.created_by_user || 'Unknown'}
                                     </TableCell>
                                     <TableCell>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            disabled={isDeleting && deletingId === order.id}
-                                            onClick={() => handleDeleteInvoice(order.id)}
-                                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                                        >
-                                            {isDeleting && deletingId === order.id ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <Trash2 className="h-4 w-4" />
-                                            )}
-                                        </Button>
+                                        <AddItemDialog id={order.id} products={products} warehouses={warehouses} />
+                                        <DeleteDialog id={order.id} deleteAction={deletePurchaseOrderAction} />
                                     </TableCell>
                                 </TableRow>
                                 {expandedRows[order.id] && (
                                     <TableRow>
                                         <TableCell colSpan={7} className="p-0 border-b">
-                                            {loadingItems[order.id] ? (
-                                                <div className="flex items-center justify-center p-8">
-                                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                                </div>
-                                            ) : (
-                                                <PurchaseItemsTable items={orderItems[order.id]} />
-                                            )}
+                                            {<PurchaseItemsTable items={order?.items_data || []} />}
                                         </TableCell>
                                     </TableRow>
                                 )}

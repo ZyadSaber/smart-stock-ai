@@ -67,7 +67,7 @@ export default async function PurchasesPage({ searchParams }: PurchasesPageProps
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <PurchaseHistoryTable initialPurchaseOrders={purchaseOrders} />
+                    <PurchaseHistoryTable initialPurchaseOrders={purchaseOrders} products={products} warehouses={warehouses} />
                 </CardContent>
             </Card>
         </div>

@@ -26,12 +26,32 @@ export async function getPurchasesPageData(
   }
 
   // 1. Fetch Purchase Orders
-  let purchasesQuery = supabase.from("purchase_orders").select(
-    `
-          *,
-          profiles:profiles!purchase_orders_user_id_fkey (full_name)
-        `
-  );
+  let purchasesQuery = supabase
+    .from("purchase_orders")
+    .select(
+      `
+    *,
+    user:profiles (
+        full_name
+    ),
+    purchase_order_items (
+      id,
+      quantity,
+      unit_price,
+      total_price,
+      product_id,
+      warehouse_id,
+      products (
+        name,
+        barcode
+      ),
+      warehouses (
+        name
+      )
+    )
+  `
+    )
+    .order("created_at", { ascending: false });
 
   if (context.isSuperAdmin) {
     if (activeBranchId) {
@@ -52,10 +72,31 @@ export async function getPurchasesPageData(
     ascending: false,
   });
 
+  const finalPurchaseOrders = purchaseOrders?.map((po) => {
+    const {
+      id,
+      supplier_name,
+      total_amount,
+      notes,
+      created_at,
+      user,
+      purchase_order_items,
+    } = po;
+    return {
+      id,
+      supplier_name,
+      total_amount,
+      notes,
+      created_at,
+      created_by_user: user?.full_name,
+      items_data: purchase_order_items,
+    };
+  });
+
   // 2. Fetch products for dialog
   let productsQuery = supabase
     .from("products")
-    .select("id, name, cost_price")
+    .select("key:id, label:name, cost_price")
     .order("name");
   if (context.isSuperAdmin && activeOrgId) {
     productsQuery = productsQuery.eq("organization_id", activeOrgId);
@@ -67,7 +108,7 @@ export async function getPurchasesPageData(
   // 3. Fetch warehouses for dialog
   let warehousesQuery = supabase
     .from("warehouses")
-    .select("id, name")
+    .select("key:id, label:name")
     .order("name");
   if (context.isSuperAdmin) {
     if (activeBranchId) {
@@ -86,15 +127,8 @@ export async function getPurchasesPageData(
   const { data: warehouses } = await warehousesQuery;
 
   return {
-    purchaseOrders: (purchaseOrders || []).map((po) => ({
-      ...po,
-      profiles:
-        (Array.isArray(po.profiles) ? po.profiles[0] : po.profiles) ||
-        undefined,
-    })),
-
+    purchaseOrders: finalPurchaseOrders || [],
     products: products || [],
     warehouses: warehouses || [],
-    context,
   };
 }

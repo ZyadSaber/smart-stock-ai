@@ -37,8 +37,11 @@ const useFormManager = <T extends Record<string, unknown>>({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     customValue?: unknown
   ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: customValue || value }));
+    const { name, value, type } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: customValue || type === "number" ? +value : value,
+    }));
 
     // Optional: Clear error for this field as the user types
     if (errors[name as keyof T]) {
@@ -65,6 +68,10 @@ const useFormManager = <T extends Record<string, unknown>>({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleChangeMultiInputs = (data: Record<string, unknown>) => {
+    setFormData((prev) => ({ ...prev, ...data }));
+  };
+
   return {
     formData,
     setFormData,
@@ -74,6 +81,7 @@ const useFormManager = <T extends Record<string, unknown>>({
     errors, // Display these in your UI
     handleToggle,
     handleFieldChange,
+    handleChangeMultiInputs,
   };
 };
 

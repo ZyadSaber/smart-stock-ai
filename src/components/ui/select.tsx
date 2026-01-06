@@ -184,6 +184,8 @@ export const SelectField = ({
   onValueChange,
   name,
   disabled,
+  containerClassName,
+  error
 }: {
   label: string;
   options: { key: string; label: string }[];
@@ -191,12 +193,14 @@ export const SelectField = ({
   onValueChange: (value: string) => void;
   name: string;
   disabled?: boolean;
+  containerClassName?: string;
+  error?: string;
 }) => {
   return (
-    <div className="space-y-2 px-1">
+    <div className={cn("space-y-2 px-1", containerClassName)}>
       <Label className="text-sm font-semibold opacity-70">{label}</Label>
       <Select name={name} value={value} onValueChange={onValueChange} disabled={disabled}>
-        <SelectTrigger className="w-full">
+        <SelectTrigger className={cn("w-full", !!error && "border-destructive")}>
           <SelectValue placeholder="Select role" />
         </SelectTrigger>
         <SelectContent>
@@ -205,6 +209,7 @@ export const SelectField = ({
           ))}
         </SelectContent>
       </Select>
+      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
     </div>
   )
 }

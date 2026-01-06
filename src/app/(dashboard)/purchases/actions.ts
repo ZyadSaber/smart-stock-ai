@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import {
   purchaseOrderSchema,
   type PurchaseOrderFormInput,
+  type PurchaseOrderItemInput,
 } from "@/lib/validations/purchase-order";
 import { PurchaseOrder, PurchaseOrderItem } from "@/types/purchases";
 import {
@@ -27,15 +28,6 @@ export async function createPurchaseOrderAction(
   if (!validatedFields.success) {
     return { error: "Invalid fields provided." };
   }
-
-  // Get current user - no longer needed, using context.userId
-  // const {
-  //   data: { user },
-  // } = await supabase.auth.getUser();
-
-  // if (!user) {
-  //   return { error: "User not authenticated." };
-  // }
 
   // Calculate total amount
   const totalAmount = validatedFields.data.items.reduce(
@@ -117,12 +109,15 @@ export async function getPurchaseOrders(): Promise<PurchaseOrder[]> {
     return [];
   }
 
-  return (data as any[]).map((order) => ({
-    ...order,
-    created_by_user: Array.isArray(order.created_by_user)
+  return (data as Record<string, unknown>[]).map((order) => {
+    const user = Array.isArray(order.created_by_user)
       ? order.created_by_user[0]
-      : order.created_by_user,
-  })) as PurchaseOrder[];
+      : order.created_by_user;
+    return {
+      ...order,
+      created_by_user: (user as Record<string, unknown>)?.full_name ?? null,
+    };
+  }) as PurchaseOrder[];
 }
 
 export async function getPurchaseOrderDetails(
@@ -178,14 +173,15 @@ export async function getPurchaseOrderDetails(
     return null;
   }
 
+  const rawUser = (order as Record<string, unknown>).created_by_user;
+  const user = Array.isArray(rawUser) ? rawUser[0] : rawUser;
+
   const typedOrder = {
     ...order,
-    created_by_user: Array.isArray(order.created_by_user)
-      ? order.created_by_user[0]
-      : order.created_by_user,
+    created_by_user: user?.full_name ?? null,
   } as PurchaseOrder;
 
-  const typedItems = (items as any[]).map((item) => ({
+  const typedItems = (items as Record<string, unknown>[]).map((item) => ({
     ...item,
     products: Array.isArray(item.products) ? item.products[0] : item.products,
     warehouses: Array.isArray(item.warehouses)
@@ -262,56 +258,6 @@ export async function deletePurchaseOrderItemAction(itemId: string) {
   return { success: true };
 }
 
-export async function getPurchaseOrderItems(
-  purchaseId: string
-): Promise<PurchaseOrderItem[]> {
-  const context = await getTenantContext();
-  if (!context) return [];
-
-  const supabase = await createClient();
-
-  // Ensure PO belongs to branch
-  let poQuery = supabase
-    .from("purchase_orders")
-    .select("id")
-    .eq("id", purchaseId);
-  poQuery = applyBranchFilter(poQuery, context);
-  const { data: po } = await poQuery.maybeSingle();
-  if (!po) return [];
-
-  let itemsQuery = supabase
-    .from("purchase_order_items")
-    .select(
-      `
-      id,
-      quantity,
-      unit_price,
-      total_price,
-      products (name, barcode),
-      warehouses (name)
-    `
-    )
-    .eq("purchase_order_id", purchaseId);
-
-  // Apply organization filter to products within items
-  itemsQuery = applyOrganizationFilter(itemsQuery, context, "products");
-
-  const { data, error } = await itemsQuery;
-
-  if (error) {
-    console.error(error);
-    return [];
-  }
-
-  return (data as any[]).map((item) => ({
-    ...item,
-    products: Array.isArray(item.products) ? item.products[0] : item.products,
-    warehouses: Array.isArray(item.warehouses)
-      ? item.warehouses[0]
-      : item.warehouses,
-  })) as PurchaseOrderItem[];
-}
-
 export async function updatePurchaseOrderItemAction(
   itemId: string,
   quantity: number,
@@ -357,4 +303,40 @@ export async function updatePurchaseOrderItemAction(
   revalidatePath("/inventory");
   revalidatePath("/warehouses");
   return { success: true };
+}
+
+export async function updateInvoiceWithNewItem({
+  purchase_order_id,
+  product_id,
+  warehouse_id,
+  quantity,
+  unit_price,
+}: PurchaseOrderItemInput) {
+  const context = await getTenantContext();
+  if (!context) return { error: "Unauthorized" };
+
+  const supabase = await createClient();
+
+  // Create purchase order items
+  const items = {
+    purchase_order_id,
+    product_id,
+    warehouse_id,
+    quantity,
+    unit_price,
+    total_price: quantity * unit_price,
+  };
+
+  const { error: itemsError } = await supabase
+    .from("purchase_order_items")
+    .insert(items);
+
+  if (itemsError) {
+    console.error(itemsError);
+    return { error: "Database error: Could not create purchase order items." };
+  }
+
+  revalidatePath("/purchases");
+  revalidatePath("/warehouses");
+  revalidatePath("/inventory");
 }

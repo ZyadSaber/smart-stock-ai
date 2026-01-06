@@ -5,11 +5,12 @@ import { Label } from "@/components/ui/label";
 type InputProps = React.ComponentProps<"input"> & {
   error?: string
   label?: string
+  containerClassName?: string
 }
 
-function Input({ className, type, error, name, label, ...props }: InputProps) {
+function Input({ className, type, error, name, label, containerClassName, ...props }: InputProps) {
   return (
-    <div className="space-y-2">
+    <div className={cn("space-y-2", containerClassName)}>
       {!!label && <Label htmlFor={name} className={cn("text-sm font-medium", error && "text-destructive")} >{label}</Label>}
       <input
         type={type}

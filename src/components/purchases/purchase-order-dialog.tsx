@@ -15,10 +15,26 @@ import { useTransition, useState } from "react";
 import { createPurchaseOrderAction } from "@/app/(dashboard)/purchases/actions";
 import { PurchaseOrderDialogProps } from "@/types/purchases";
 import { formatEGP } from "@/lib/utils";
+import { useFormManager } from "@/hooks";
 
 export function PurchaseOrderDialog({ products, warehouses }: PurchaseOrderDialogProps) {
     const [isPending, startTransition] = useTransition();
     const [open, setOpen] = useState(false);
+
+    const { formData, handleChangeMultiInputs } = useFormManager({
+        schema: purchaseOrderSchema,
+        initialData: {
+            supplier_name: "",
+            notes: "",
+            items: [{
+                product_id: "",
+                warehouse_id: "",
+                quantity: 1,
+                unit_price: 0,
+                purchase_order_id: ""
+            }],
+        }
+    })
 
     const form = useForm<PurchaseOrderFormInput>({
         resolver: zodResolver(purchaseOrderSchema),
@@ -116,7 +132,7 @@ export function PurchaseOrderDialog({ products, warehouses }: PurchaseOrderDialo
                                                         onValueChange={(value) => {
                                                             field.onChange(value);
                                                             // Auto-fill unit price from product cost price
-                                                            const product = products.find(p => p.id === value);
+                                                            const product = products.find(p => p.key === value);
                                                             if (product) {
                                                                 form.setValue(`items.${index}.unit_price`, product.cost_price);
                                                             }
@@ -130,8 +146,8 @@ export function PurchaseOrderDialog({ products, warehouses }: PurchaseOrderDialo
                                                         </FormControl>
                                                         <SelectContent>
                                                             {products.map((product) => (
-                                                                <SelectItem key={product.id} value={product.id}>
-                                                                    {product.name}
+                                                                <SelectItem key={product.key} value={product.key}>
+                                                                    {product.label}
                                                                 </SelectItem>
                                                             ))}
                                                         </SelectContent>
@@ -155,8 +171,8 @@ export function PurchaseOrderDialog({ products, warehouses }: PurchaseOrderDialo
                                                         </FormControl>
                                                         <SelectContent>
                                                             {warehouses.map((warehouse) => (
-                                                                <SelectItem key={warehouse.id} value={warehouse.id}>
-                                                                    {warehouse.name}
+                                                                <SelectItem key={warehouse.key} value={warehouse.key}>
+                                                                    {warehouse.label}
                                                                 </SelectItem>
                                                             ))}
                                                         </SelectContent>

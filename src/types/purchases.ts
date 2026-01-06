@@ -1,12 +1,12 @@
 export interface PurchaseProduct {
-  id: string;
-  name: string;
+  key: string;
+  label: string;
   cost_price: number;
 }
 
 export interface Warehouse {
-  id: string;
-  name: string;
+  key: string;
+  label: string;
 }
 
 export interface PurchaseOrder {
@@ -15,9 +15,8 @@ export interface PurchaseOrder {
   total_amount: string;
   notes: string | null;
   created_at: string;
-  created_by_user?: {
-    full_name: string | null;
-  };
+  created_by_user?: string | null;
+  items_data: PurchaseOrderItem[];
 }
 
 export interface PurchaseOrderItem {

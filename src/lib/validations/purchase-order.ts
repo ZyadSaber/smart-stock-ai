@@ -5,6 +5,7 @@ export const purchaseOrderItemSchema = z.object({
   warehouse_id: z.string().min(1, "Warehouse is required"),
   quantity: z.number().int().positive("Quantity must be positive"),
   unit_price: z.number().positive("Unit price must be positive"),
+  purchase_order_id: z.string().min(1),
 });
 
 export const purchaseOrderSchema = z.object({
