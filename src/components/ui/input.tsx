@@ -10,7 +10,7 @@ type InputProps = React.ComponentProps<"input"> & {
 
 function Input({ className, type, error, name, label, containerClassName, ...props }: InputProps) {
   return (
-    <div className={cn("space-y-2", containerClassName)}>
+    <div className={cn("space-y-2 px-1", containerClassName)}>
       {!!label && <Label htmlFor={name} className={cn("text-sm font-medium", error && "text-destructive")} >{label}</Label>}
       <input
         type={type}

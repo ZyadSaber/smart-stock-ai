@@ -29,14 +29,33 @@ export async function getSalesPageData(
   let salesQuery = supabase.from("sales").select(
     `
           id,
-          customer_name,
+          customer_id,
+          customer: customers (
+            name
+          ),
           notes,
           total_amount,
           profit_amount,
           created_at,
           user_id,
-          profiles:profiles!sales_user_id_fkey (full_name)
-        `
+          user:profiles (
+            full_name
+          ),
+          sale_items (
+            id,
+            quantity,
+            unit_price,
+            product_id,
+            warehouse_id,
+            products (
+              name,
+              barcode
+            ),
+            warehouses (
+              name
+            )
+          )
+      `
   );
 
   if (context.isSuperAdmin) {
@@ -58,10 +77,38 @@ export async function getSalesPageData(
     ascending: false,
   });
 
+  const finalSales = sales?.map((po) => {
+    const {
+      profit_amount,
+      user_id,
+      id,
+      customer_id,
+      total_amount,
+      notes,
+      created_at,
+      user,
+      sale_items,
+      customer,
+    } = po;
+
+    return {
+      id,
+      customer_id,
+      customer_name: (Array.isArray(customer) ? customer[0] : customer)?.name,
+      total_amount,
+      notes,
+      created_at,
+      created_by_user: (Array.isArray(user) ? user[0] : user)?.full_name,
+      items_data: sale_items,
+      profit_amount,
+      user_id,
+    };
+  });
+
   // 2. Fetch products for dialog
   let productsQuery = supabase
     .from("products")
-    .select("id, name, selling_price")
+    .select("key:id, label:name, selling_price, barcode")
     .order("name");
   if (context.isSuperAdmin && activeOrgId) {
     productsQuery = productsQuery.eq("organization_id", activeOrgId);
@@ -73,7 +120,7 @@ export async function getSalesPageData(
   // 3. Fetch warehouses for dialog
   let warehousesQuery = supabase
     .from("warehouses")
-    .select("id, name")
+    .select("key:id, label:name")
     .order("name");
   if (context.isSuperAdmin) {
     if (activeBranchId) {
@@ -91,16 +138,21 @@ export async function getSalesPageData(
   }
   const { data: warehouses } = await warehousesQuery;
 
-  return {
-    sales: (sales || []).map((sale) => ({
-      ...sale,
-      profiles:
-        (Array.isArray(sale.profiles) ? sale.profiles[0] : sale.profiles) ||
-        undefined,
-    })),
+  let customersQuery = supabase
+    .from("customers")
+    .select("key:id, label:name")
+    .order("name");
+  if (context.isSuperAdmin && activeOrgId) {
+    customersQuery = customersQuery.eq("organization_id", activeOrgId);
+  } else {
+    customersQuery = applyOrganizationFilter(customersQuery, context);
+  }
+  const { data: customers } = await customersQuery;
 
+  return {
+    sales: finalSales || [],
     products: products || [],
     warehouses: warehouses || [],
-    context,
+    customers: customers || [],
   };
 }

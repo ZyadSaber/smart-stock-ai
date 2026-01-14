@@ -1,5 +1,7 @@
 "use client";
 
+import { Fragment, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import {
     Table,
     TableBody,
@@ -10,23 +12,22 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { Fragment, useState } from "react";
 import { cn, formatEGP } from "@/lib/utils";
-import { PurchaseOrder } from "@/types/purchases";
+import { PurchaseOrder, Supplier } from "@/types/purchases";
 import DeleteDialog from "@/components/shared/delete-dialog";
-import { AddItemDialog } from "./AddItemDialog"
-import { deletePurchaseOrderAction } from "@/app/(dashboard)/purchases/actions"
+import { deletePurchaseOrderAction } from "@/services/purchases"
 import { PurchaseItemsTable } from "./PurchaseItemsTable";
 import { PurchaseProduct, Warehouse } from "@/types/purchases";
+import { PurchaseOrderDialog } from "./purchase-order-dialog";
 
 interface PurchaseHistoryTableProps {
     initialPurchaseOrders: PurchaseOrder[];
     products: PurchaseProduct[];
     warehouses: Warehouse[];
+    suppliers: Supplier[];
 }
 
-export function PurchaseHistoryTable({ initialPurchaseOrders, products, warehouses }: PurchaseHistoryTableProps) {
+export function PurchaseHistoryTable({ initialPurchaseOrders, products, warehouses, suppliers }: PurchaseHistoryTableProps) {
     const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
     const toggleRow = async (orderId: string) => {
         setExpandedRows(prev => ({ ...prev, [orderId]: !prev[orderId] }));
@@ -89,7 +90,12 @@ export function PurchaseHistoryTable({ initialPurchaseOrders, products, warehous
                                         {order.created_by_user || 'Unknown'}
                                     </TableCell>
                                     <TableCell>
-                                        <AddItemDialog id={order.id} products={products} warehouses={warehouses} />
+                                        <PurchaseOrderDialog
+                                            products={products}
+                                            warehouses={warehouses}
+                                            suppliers={suppliers}
+                                            previousData={order}
+                                        />
                                         <DeleteDialog id={order.id} deleteAction={deletePurchaseOrderAction} />
                                     </TableCell>
                                 </TableRow>

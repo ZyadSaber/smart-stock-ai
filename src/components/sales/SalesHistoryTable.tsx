@@ -10,57 +10,34 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, Trash2, Loader2 } from "lucide-react";
-import { Fragment, useState, useTransition } from "react";
-import { deleteSaleAction, getSaleItems } from "@/app/(dashboard)/sales/actions";
-import { toast } from "sonner";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { Fragment, useState } from "react";
+import { deleteSaleAction } from "@/app/(dashboard)/sales/actions";
+import DeleteDialog from "@/components/shared/delete-dialog";
 import { SalesItemsTable } from "./SalesItemsTable";
 import { cn, formatEGP } from "@/lib/utils";
-import { Sale, SaleItem } from "@/types/sales";
+import { Sale, SaleProduct, Warehouse, Customers } from "@/types/sales";
 
 import { GenerateInvoiceButton } from "./GenerateInvoiceButton";
+import { SaleOrderDialog } from "./sale-order-dialog";
 
 interface SalesHistoryTableProps {
     initialSales: Sale[];
+    products: SaleProduct[];
+    warehouses: Warehouse[];
+    customers: Customers[];
 }
 
-export function SalesHistoryTable({ initialSales }: SalesHistoryTableProps) {
+export function SalesHistoryTable({
+    initialSales,
+    products,
+    warehouses,
+    customers
+}: SalesHistoryTableProps) {
     const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-    const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
-    const [saleItems, setSaleItems] = useState<Record<string, SaleItem[]>>({});
 
-    const [isDeleting, startDeleteTransition] = useTransition();
-    const [deletingId, setDeletingId] = useState<string | null>(null);
-
-    const toggleRow = async (saleId: string) => {
+    const toggleRow = (saleId: string) => () => {
         setExpandedRows(prev => ({ ...prev, [saleId]: !prev[saleId] }));
-
-        if (!expandedRows[saleId] && !saleItems[saleId]) {
-            setLoadingItems(prev => ({ ...prev, [saleId]: true }));
-            try {
-                const items = await getSaleItems(saleId);
-                setSaleItems(prev => ({ ...prev, [saleId]: items }));
-            } catch {
-                toast.error("Failed to load details");
-            } finally {
-                setLoadingItems(prev => ({ ...prev, [saleId]: false }));
-            }
-        }
-    };
-
-    const handleDelete = (saleId: string) => {
-        if (confirm("Are you sure you want to delete this sale? This will NOT restore stock levels.")) {
-            setDeletingId(saleId);
-            startDeleteTransition(async () => {
-                const result = await deleteSaleAction(saleId);
-                if (result.error) {
-                    toast.error(result.error);
-                } else {
-                    toast.success("Sale deleted");
-                }
-                setDeletingId(null);
-            });
-        }
     };
 
     return (
@@ -92,7 +69,7 @@ export function SalesHistoryTable({ initialSales }: SalesHistoryTableProps) {
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => toggleRow(sale.id)}
+                                            onClick={toggleRow(sale.id)}
                                             className="h-8 w-8 p-0"
                                         >
                                             {expandedRows[sale.id] ? (
@@ -117,37 +94,25 @@ export function SalesHistoryTable({ initialSales }: SalesHistoryTableProps) {
                                         {formatEGP(Number(sale.profit_amount))}
                                     </TableCell>
                                     <TableCell className="text-sm">
-                                        {sale.profiles?.full_name || 'Unknown'}
+                                        {sale.created_by_user || 'Unknown'}
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-1">
                                             <GenerateInvoiceButton saleId={sale.id} showIconOnly />
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                disabled={isDeleting && deletingId === sale.id}
-                                                onClick={() => handleDelete(sale.id)}
-                                                className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                                            >
-                                                {isDeleting && deletingId === sale.id ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <Trash2 className="h-4 w-4" />
-                                                )}
-                                            </Button>
+                                            <SaleOrderDialog
+                                                products={products}
+                                                warehouses={warehouses}
+                                                customers={customers}
+                                                previousData={sale}
+                                            />
+                                            <DeleteDialog id={sale.id} deleteAction={deleteSaleAction} />
                                         </div>
                                     </TableCell>
                                 </TableRow>
                                 {expandedRows[sale.id] && (
                                     <TableRow>
                                         <TableCell colSpan={8} className="p-0 border-b">
-                                            {loadingItems[sale.id] ? (
-                                                <div className="flex items-center justify-center p-8">
-                                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                                </div>
-                                            ) : (
-                                                <SalesItemsTable items={saleItems[sale.id]} saleId={sale.id} />
-                                            )}
+                                            <SalesItemsTable items={sale.items_data} saleId={sale.id} />
                                             {sale.notes && (
                                                 <div className="px-14 py-3 text-sm text-muted-foreground italic border-t bg-muted/10">
                                                     Note: {sale.notes}

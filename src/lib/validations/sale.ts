@@ -8,9 +8,10 @@ export const saleItemSchema = z.object({
 });
 
 export const saleSchema = z.object({
-  customer_name: z.string().min(1, "Customer name is required"),
+  customer_id: z.string().min(1, "Customer name is required"),
+  customer_name: z.string(),
   notes: z.string().optional(),
-  items: z.array(saleItemSchema).min(1, "At least one item is required"),
+  items_data: z.array(saleItemSchema).min(1, "At least one item is required"),
 });
 
 export type SaleItemInput = z.infer<typeof saleItemSchema>;

@@ -6,9 +6,8 @@ export interface Sale {
   profit_amount: number;
   created_at: string;
   user_id: string;
-  profiles?: {
-    full_name: string | null;
-  };
+  created_by_user: string;
+  items_data: SaleItem[];
 }
 
 export interface SaleItem {
@@ -28,17 +27,25 @@ export interface SaleItem {
 }
 
 export interface SaleProduct {
-  id: string;
-  name: string;
+  key: string;
+  label: string;
   selling_price: number;
+  barcode: string;
 }
 
 export interface Warehouse {
-  id: string;
-  name: string;
+  key: string;
+  label: string;
+}
+
+export interface Customers {
+  key: string;
+  label: string;
 }
 
 export interface SaleOrderDialogProps {
   products: SaleProduct[];
   warehouses: Warehouse[];
+  customers: Customers[];
+  previousData?: Sale;
 }

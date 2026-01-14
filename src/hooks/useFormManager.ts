@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ZodSchema, z } from "zod";
+import { ZodSchema } from "zod";
 
 interface UseFormManagerProps<T> {
   initialData: T;
@@ -11,21 +11,18 @@ const useFormManager = <T extends Record<string, unknown>>({
   schema,
 }: UseFormManagerProps<T>) => {
   const [formData, setFormData] = useState<T>(initialData);
-  const [errors, setErrors] = useState<Partial<Record<keyof T, string>>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validate = (): boolean => {
     if (!schema) return true;
 
     const result = schema.safeParse(formData);
     if (!result.success) {
-      const treeified = z.treeifyError(result.error);
-      const formattedErrors: Record<string, string> = Object.fromEntries(
-        Object.entries(treeified.properties || {}).map(([key, value]) => [
-          key,
-          value?.errors?.[0] || "",
-        ])
-      );
-      setErrors(formattedErrors as Partial<Record<keyof T, string>>);
+      const formattedErrors: Record<string, string> = {};
+      result.error.issues.forEach((issue) => {
+        formattedErrors[issue.path.join(".")] = issue.message;
+      });
+      setErrors(formattedErrors);
       return false;
     }
 
@@ -44,8 +41,8 @@ const useFormManager = <T extends Record<string, unknown>>({
     }));
 
     // Optional: Clear error for this field as the user types
-    if (errors[name as keyof T]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 

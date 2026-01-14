@@ -11,7 +11,7 @@ interface SalesPageProps {
 }
 
 export default async function SalesPage({ searchParams }: SalesPageProps) {
-    const { sales, products, warehouses } = await resolvePageData(searchParams, getSalesPageData);
+    const { sales, products, warehouses, customers } = await resolvePageData(searchParams, getSalesPageData);
 
 
     // Calculate summary stats
@@ -29,6 +29,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                 <SaleOrderDialog
                     products={products}
                     warehouses={warehouses}
+                    customers={customers}
                 />
             </div>
 
@@ -78,7 +79,12 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <SalesHistoryTable initialSales={sales} />
+                    <SalesHistoryTable
+                        initialSales={sales}
+                        products={products}
+                        warehouses={warehouses}
+                        customers={customers}
+                    />
                 </CardContent>
             </Card>
         </div>

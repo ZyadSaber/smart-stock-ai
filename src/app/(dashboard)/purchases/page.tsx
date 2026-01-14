@@ -12,7 +12,7 @@ interface PurchasesPageProps {
 }
 
 export default async function PurchasesPage({ searchParams }: PurchasesPageProps) {
-    const { purchaseOrders, products, warehouses } = await resolvePageData(searchParams, getPurchasesPageData);
+    const { purchaseOrders, products, warehouses, suppliers } = await resolvePageData(searchParams, getPurchasesPageData);
 
 
     // Calculate summary stats
@@ -29,6 +29,7 @@ export default async function PurchasesPage({ searchParams }: PurchasesPageProps
                 <PurchaseOrderDialog
                     products={products}
                     warehouses={warehouses}
+                    suppliers={suppliers}
                 />
             </div>
 
@@ -67,7 +68,12 @@ export default async function PurchasesPage({ searchParams }: PurchasesPageProps
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <PurchaseHistoryTable initialPurchaseOrders={purchaseOrders} products={products} warehouses={warehouses} />
+                    <PurchaseHistoryTable
+                        suppliers={suppliers}
+                        initialPurchaseOrders={purchaseOrders}
+                        products={products}
+                        warehouses={warehouses}
+                    />
                 </CardContent>
             </Card>
         </div>

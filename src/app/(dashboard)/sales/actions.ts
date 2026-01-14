@@ -3,7 +3,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { saleSchema, type SaleFormInput } from "@/lib/validations/sale";
-import { Sale, SaleItem } from "@/types/sales";
 import {
   getTenantContext,
   getBranchDefaults,
@@ -27,7 +26,7 @@ export async function createSaleAction(values: SaleFormInput) {
 
   // Check stock availability for all items before proceeding
   // We MUST check stock for the CURRENT branch
-  for (const item of validatedFields.data.items) {
+  for (const item of validatedFields.data.items_data) {
     let stockQuery = supabase
       .from("product_stocks")
       .select("quantity")
@@ -62,7 +61,7 @@ export async function createSaleAction(values: SaleFormInput) {
   let totalAmount = 0;
   let totalProfit = 0;
 
-  const productIds = validatedFields.data.items.map((i) => i.product_id);
+  const productIds = validatedFields.data.items_data.map((i) => i.product_id);
 
   // Products are Organization level
   let productsQuery = supabase
@@ -74,7 +73,7 @@ export async function createSaleAction(values: SaleFormInput) {
 
   const productMap = new Map(products?.map((p) => [p.id, p.cost_price]));
 
-  for (const item of validatedFields.data.items) {
+  for (const item of validatedFields.data.items_data) {
     const subtotal = item.quantity * item.unit_price;
     totalAmount += subtotal;
 
@@ -88,7 +87,7 @@ export async function createSaleAction(values: SaleFormInput) {
     .from("sales")
     .insert([
       {
-        customer_name: validatedFields.data.customer_name,
+        customer_id: validatedFields.data.customer_id,
         notes: validatedFields.data.notes,
         total_amount: totalAmount,
         profit_amount: totalProfit,
@@ -107,7 +106,7 @@ export async function createSaleAction(values: SaleFormInput) {
   }
 
   // Create sale items
-  const items = validatedFields.data.items.map((item) => ({
+  const items = validatedFields.data.items_data.map((item) => ({
     sale_id: sale.id,
     product_id: item.product_id,
     warehouse_id: item.warehouse_id,
@@ -129,73 +128,6 @@ export async function createSaleAction(values: SaleFormInput) {
   return { success: true };
 }
 
-export async function getSales(
-  searchParams: { organization_id?: string; branch_id?: string } = {}
-): Promise<Sale[]> {
-  const context = await getTenantContext();
-  if (!context) return [];
-
-  const supabase = await createClient();
-
-  // Determine effectively active filters
-  let activeOrgId: string | undefined = undefined;
-  let activeBranchId: string | undefined = undefined;
-
-  if (context.isSuperAdmin) {
-    activeOrgId = searchParams.organization_id;
-    activeBranchId = searchParams.branch_id;
-  } else {
-    activeOrgId = context.organizationId || undefined;
-    activeBranchId = context.branchId || undefined;
-  }
-
-  let query = supabase.from("sales").select(
-    `
-      id,
-      customer_name,
-      notes,
-      total_amount,
-      profit_amount,
-      created_at,
-      user_id,
-      profiles:profiles!sales_user_id_fkey (full_name)
-    `
-  );
-
-  if (context.isSuperAdmin) {
-    if (activeBranchId) {
-      query = query.eq("branch_id", activeBranchId);
-    } else if (activeOrgId) {
-      const { data: orgBranches } = await supabase
-        .from("branches")
-        .select("id")
-        .eq("organization_id", activeOrgId);
-      const branchIds = orgBranches?.map((b) => b.id) || [];
-      query = query.in("branch_id", branchIds);
-    }
-  } else {
-    query = applyBranchFilter(query, context);
-  }
-
-  query = query.order("created_at", { ascending: false });
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error(error);
-    return [];
-  }
-
-  const rawSales = data as unknown as (Sale & {
-    profiles: { full_name: string | null } | { full_name: string | null }[];
-  })[];
-
-  return rawSales.map((sale) => ({
-    ...sale,
-    profiles: Array.isArray(sale.profiles) ? sale.profiles[0] : sale.profiles,
-  })) as Sale[];
-}
-
 export async function deleteSaleAction(id: string) {
   const context = await getTenantContext();
   if (!context) return { error: "Unauthorized" };
@@ -215,52 +147,6 @@ export async function deleteSaleAction(id: string) {
   revalidatePath("/sales");
   revalidatePath("/inventory");
   return { success: true };
-}
-
-export async function getSaleItems(saleId: string): Promise<SaleItem[]> {
-  const context = await getTenantContext();
-  if (!context) return [];
-
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("sale_items")
-    .select(
-      `
-      id,
-      sale_id,
-      product_id,
-      warehouse_id,
-      quantity,
-      unit_price,
-      products (name, barcode),
-      warehouses (name)
-    `
-    )
-    .eq("sale_id", saleId);
-
-  if (error) {
-    console.error(error);
-    return [];
-  }
-
-  // Filter in memory if needed or trust that sale_id already restricts to the right tenant
-  // Since sale_id is unique and the sale itself is restricted, items are implicitly restricted
-
-  const rawItems = data as unknown as (SaleItem & {
-    products:
-      | { name: string; barcode: string }
-      | { name: string; barcode: string }[];
-    warehouses: { name: string } | { name: string }[];
-  })[];
-
-  return rawItems.map((item) => ({
-    ...item,
-    products: Array.isArray(item.products) ? item.products[0] : item.products,
-    warehouses: Array.isArray(item.warehouses)
-      ? item.warehouses[0]
-      : item.warehouses,
-  })) as SaleItem[];
 }
 
 export async function getTopSellingProducts(

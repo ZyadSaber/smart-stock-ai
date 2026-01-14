@@ -6,6 +6,8 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 import { Label } from "@/components/ui/label";
 
 import { cn } from "@/lib/utils"
+import { useVisibility } from "@/hooks";
+import isArrayHasData from "@/lib/isArrayHasData";
 
 function Select({
   ...props
@@ -56,14 +58,15 @@ function SelectContent({
   children,
   position = "item-aligned",
   align = "center",
+  header,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+}: React.ComponentProps<typeof SelectPrimitive.Content> & { header?: React.ReactNode }) {
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
-          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 max-h-(--radix-select-content-available-height) min-w-32 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border shadow-md",
+          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 max-h-(--radix-select-content-available-height) min-w-32 origin-(--radix-select-content-transform-origin) overflow-x-hidden rounded-md border shadow-md flex flex-col",
           position === "popper" &&
           "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           className
@@ -73,9 +76,10 @@ function SelectContent({
         {...props}
       >
         <SelectScrollUpButton />
+        {header && <div className="p-2 border-b bg-popover z-20">{header}</div>}
         <SelectPrimitive.Viewport
           className={cn(
-            "p-1",
+            "p-1 overflow-y-auto",
             position === "popper" &&
             "h-(--radix-select-trigger-height) w-full min-w-(--radix-select-trigger-width) scroll-my-1"
           )}
@@ -177,7 +181,7 @@ function SelectScrollDownButton({
   )
 }
 
-export const SelectField = ({
+export function SelectField<T extends { key: string; label: string }>({
   label,
   options,
   value,
@@ -185,28 +189,101 @@ export const SelectField = ({
   name,
   disabled,
   containerClassName,
-  error
+  error,
+  showSearch = false,
+  searchPlaceholder = "Search...",
+  extraSearchParam = [],
+  preSelectFirstKey = false,
+  placeholder,
+  renderAddField
 }: {
   label: string;
-  options: { key: string; label: string }[];
+  options: T[];
   value: string;
   onValueChange: (value: string) => void;
   name: string;
   disabled?: boolean;
   containerClassName?: string;
   error?: string;
-}) => {
+  searchPlaceholder?: string;
+  extraSearchParam?: string[];
+  showSearch?: boolean;
+  preSelectFirstKey?: boolean;
+  placeholder?: string;
+  renderAddField?: (onSuccess: (newId: string) => void) => React.ReactNode;
+}) {
+  const [search, setSearch] = React.useState("")
+  const { visible, handleClose, handleStateChange } = useVisibility()
+
+  React.useEffect(() => {
+    if (preSelectFirstKey && !value && isArrayHasData(options)) {
+      onValueChange(options[0].key)
+    }
+  }, [options, preSelectFirstKey, value, onValueChange])
+
+  const filteredOptions = React.useMemo(() => {
+    if (!showSearch || !search) return options
+    const searchLower = search.toLowerCase()
+    return options.filter(option => {
+      const matchLabel = option.label.toLowerCase().includes(searchLower)
+      if (matchLabel) return true
+
+      return extraSearchParam.some(param => {
+        const val = (option as Record<string, unknown>)[param]
+        return String(val || "").toLowerCase().includes(searchLower)
+      })
+    })
+  }, [options, search, showSearch, extraSearchParam])
+
   return (
     <div className={cn("space-y-2 px-1", containerClassName)}>
       <Label className="text-sm font-semibold opacity-70">{label}</Label>
-      <Select name={name} value={value} onValueChange={onValueChange} disabled={disabled}>
+      <Select
+        name={name}
+        value={value}
+        open={visible}
+        onOpenChange={handleStateChange}
+        onValueChange={(val) => {
+          onValueChange(val)
+          setSearch("") // Reset search on select
+        }}
+        disabled={disabled}
+      >
         <SelectTrigger className={cn("w-full", !!error && "border-destructive")}>
-          <SelectValue placeholder="Select role" />
+          <SelectValue placeholder={placeholder ? placeholder : `Select ${label.toLowerCase()}`} />
         </SelectTrigger>
-        <SelectContent>
-          {options?.map((option, index) => (
-            <SelectItem key={index} value={option.key}>{option.label}</SelectItem>
-          ))}
+        <SelectContent
+          position="popper"
+          sideOffset={4}
+          header={showSearch || renderAddField ? (
+            <div className="flex flex-col gap-2 p-1 border-b bg-popover sticky top-0 z-20">
+              {showSearch && (
+                <input
+                  type="text"
+                  placeholder={searchPlaceholder}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full text-sm bg-transparent outline-none p-1 border rounded"
+                />
+              )}
+              {renderAddField && renderAddField((newId: string) => {
+                onValueChange(newId)
+                handleClose()
+              })}
+            </div>
+          ) : null}
+        >
+          {filteredOptions?.length > 0 ? (
+            filteredOptions.map((option, index) => (
+              <SelectItem key={index} value={option.key}>{option.label}</SelectItem>
+            ))
+          ) : (
+            <div className="p-4 text-sm text-center text-muted-foreground">
+              No results found
+            </div>
+          )}
         </SelectContent>
       </Select>
       {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
