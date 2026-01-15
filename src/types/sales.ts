@@ -1,5 +1,6 @@
 export interface Sale {
   id: string;
+  customer_id?: string;
   customer_name?: string;
   notes?: string;
   total_amount: number;

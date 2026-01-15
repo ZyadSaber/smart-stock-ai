@@ -132,7 +132,7 @@ export function EditPermissionsDrawer({ user, open, onOpenChange, organizationsL
                 <div className="border-t pt-4">
                     <h4 className="text-sm font-semibold mb-3 px-1 opacity-70">Navigation Access</h4>
                     <div className="grid grid-cols-2 gap-3">
-                        {['dashboard', 'inventory', 'warehouses', 'stock-movements', 'purchases', 'sales'].map((item) => (
+                        {['dashboard', 'inventory', 'warehouses', 'stock-movements', 'purchases', 'sales', 'reports'].map((item) => (
                             <div key={item} className="flex items-center gap-2 p-2 rounded border hover:bg-muted/30">
                                 <Switch
                                     checked={!!permissions[item as keyof UserPermissions]}

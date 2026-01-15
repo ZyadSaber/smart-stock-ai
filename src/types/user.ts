@@ -6,6 +6,7 @@ export interface UserPermissions {
   purchases?: boolean;
   sales?: boolean;
   users?: boolean;
+  reports?: boolean;
   [key: string]: boolean | undefined;
 }
 

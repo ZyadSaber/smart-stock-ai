@@ -13,7 +13,6 @@ interface SalesPageProps {
 export default async function SalesPage({ searchParams }: SalesPageProps) {
     const { sales, products, warehouses, customers } = await resolvePageData(searchParams, getSalesPageData);
 
-
     // Calculate summary stats
     const totalSalesCount = sales.length;
     const totalRevenue = sales.reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
