@@ -12,21 +12,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, useState } from "react";
-import { deleteSaleAction } from "@/app/(dashboard)/sales/actions";
+import { deleteSaleAction } from "@/services/sales";
 import DeleteDialog from "@/components/shared/delete-dialog";
 import { SalesItemsTable } from "./SalesItemsTable";
 import { cn, formatEGP } from "@/lib/utils";
-import { Sale, SaleProduct, Warehouse, Customers } from "@/types/sales";
-
+import { SalesHistoryTableProps } from "@/types/sales";
 import { GenerateInvoiceButton } from "./GenerateInvoiceButton";
 import { SaleOrderDialog } from "./sale-order-dialog";
-
-interface SalesHistoryTableProps {
-    initialSales: Sale[];
-    products: SaleProduct[];
-    warehouses: Warehouse[];
-    customers: Customers[];
-}
 
 export function SalesHistoryTable({
     initialSales,
@@ -98,7 +90,7 @@ export function SalesHistoryTable({
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-1">
-                                            <GenerateInvoiceButton saleId={sale.id} showIconOnly />
+                                            <GenerateInvoiceButton sale={sale} />
                                             <SaleOrderDialog
                                                 products={products}
                                                 warehouses={warehouses}

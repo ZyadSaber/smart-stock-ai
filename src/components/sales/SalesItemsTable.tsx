@@ -7,7 +7,6 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { GenerateInvoiceButton } from "./GenerateInvoiceButton";
 import { SaleItem } from "@/types/sales";
 import { formatEGP } from "@/lib/utils";
 
@@ -16,7 +15,7 @@ interface SalesItemsTableProps {
     saleId: string;
 }
 
-export function SalesItemsTable({ items, saleId }: SalesItemsTableProps) {
+export function SalesItemsTable({ items }: SalesItemsTableProps) {
     if (!items || items.length === 0) {
         return <div className="p-4 text-center text-muted-foreground">No items found for this sale.</div>;
     }
@@ -25,7 +24,6 @@ export function SalesItemsTable({ items, saleId }: SalesItemsTableProps) {
         <div className="rounded-md border bg-muted/30 m-4 overflow-hidden">
             <div className="px-4 py-2 bg-muted/50 border-b flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sale Details</span>
-                <GenerateInvoiceButton saleId={saleId} variant="secondary" />
             </div>
             <Table>
                 <TableHeader>

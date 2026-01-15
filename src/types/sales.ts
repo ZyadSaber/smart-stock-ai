@@ -8,6 +8,8 @@ export interface Sale {
   user_id: string;
   created_by_user: string;
   items_data: SaleItem[];
+  organization_name: string;
+  branch_name: string;
 }
 
 export interface SaleItem {
@@ -48,4 +50,11 @@ export interface SaleOrderDialogProps {
   warehouses: Warehouse[];
   customers: Customers[];
   previousData?: Sale;
+}
+
+export interface SalesHistoryTableProps {
+  initialSales: Sale[];
+  products: SaleProduct[];
+  warehouses: Warehouse[];
+  customers: Customers[];
 }

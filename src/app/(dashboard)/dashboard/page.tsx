@@ -1,5 +1,5 @@
 import { getDashboardStats } from '@/services/dashboard';
-import { getSales, getTopSellingProducts } from "@/app/(dashboard)/sales/actions";
+import { getSales, getTopSellingProducts } from "@/services/sales";
 import { getAllWarehousesValuation } from "@/app/(dashboard)/warehouses/actions";
 import { getStockFlowData } from "@/app/(dashboard)/stock-movements/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,16 +15,13 @@ export default async function DashboardPage({
 }: {
     searchParams: Promise<{ organization_id?: string; branch_id?: string }>;
 }) {
+
     const filters = await searchParams;
     const stats = await getDashboardStats(filters);
     const sales = await getSales(filters);
     const warehouseValuations = await getAllWarehousesValuation(filters);
     const topProducts = await getTopSellingProducts(filters);
     const stockFlow = await getStockFlowData(filters);
-
-
-
-    // Currency formatting is now handled by formatEGP from utils
 
     const statusBoxes = [
         {

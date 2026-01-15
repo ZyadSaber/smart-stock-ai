@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ShoppingBag, Loader2, Plus, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { createSaleAction } from "@/app/(dashboard)/sales/actions";
+import { createSaleAction } from "@/services/sales";
 import { SaleOrderDialogProps } from "@/types/sales";
 import { cn, formatEGP } from "@/lib/utils";
 import { useVisibility, useFormManager } from "@/hooks";

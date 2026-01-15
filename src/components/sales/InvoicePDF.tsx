@@ -3,6 +3,7 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { format } from "date-fns";
 import { formatEGP } from "@/lib/utils";
+import { Sale, SaleItem } from "@/types/sales";
 
 // Create styles
 const styles = StyleSheet.create({
@@ -28,7 +29,7 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: "bold",
         color: "#1E3A8A",
-        marginBottom: 4,
+        marginBottom: 14,
     },
     companyTagline: {
         fontSize: 8,
@@ -158,35 +159,35 @@ const styles = StyleSheet.create({
     }
 });
 
-interface InvoiceItem {
-    product_name: string;
-    barcode?: string;
-    quantity: number;
-    unit_price: number;
-}
+// interface InvoiceItem {
+//     product_name: string;
+//     barcode?: string;
+//     quantity: number;
+//     unit_price: number;
+// }
 
-interface InvoiceSale {
-    id: string;
-    created_at: string;
-    customer_name: string | null;
-    total_amount: number;
-    notes: string | null;
-    seller_name: string;
-    items: InvoiceItem[];
-}
+// interface InvoiceSale {
+//     id: string;
+//     created_at: string;
+//     customer_name: string | null;
+//     total_amount: number;
+//     notes: string | null;
+//     seller_name: string;
+//     items: InvoiceItem[];
+// }
 
-interface InvoicePDFProps {
-    sale: InvoiceSale;
-}
+// interface InvoicePDFProps {
+//     sale: InvoiceSale;
+// }
 
-export const InvoicePDF = ({ sale }: InvoicePDFProps) => (
+export const InvoicePDF = ({ sale }: { sale: Sale }) => (
     <Document>
         <Page size="A4" style={styles.page}>
             {/* Header */}
             <View style={styles.header}>
                 <View style={styles.logoSection}>
-                    <Text style={styles.companyName}>SmartStock AI</Text>
-                    <Text style={styles.companyTagline}>Premium Inventory Management</Text>
+                    <Text style={styles.companyName}>{sale.organization_name}</Text>
+                    <Text style={styles.companyTagline}>{sale.branch_name}</Text>
                 </View>
                 <View style={styles.invoiceInfo}>
                     <Text style={styles.invoiceTitle}>INVOICE</Text>
@@ -211,7 +212,7 @@ export const InvoicePDF = ({ sale }: InvoicePDFProps) => (
                 </View>
                 <View style={{ textAlign: "right" }}>
                     <Text style={styles.sectionTitle}>Salesperson:</Text>
-                    <Text>{sale.seller_name}</Text>
+                    <Text>{sale.created_by_user}</Text>
                 </View>
             </View>
 
@@ -224,11 +225,11 @@ export const InvoicePDF = ({ sale }: InvoicePDFProps) => (
                     <View style={styles.colTotal}><Text style={styles.headerText}>TOTAL</Text></View>
                 </View>
 
-                {sale.items.map((item: InvoiceItem, index: number) => (
+                {sale.items_data.map((item: SaleItem, index: number) => (
                     <View key={index} style={styles.tableRow}>
                         <View style={styles.colProduct}>
-                            <Text style={{ fontWeight: "bold" }}>{item.product_name}</Text>
-                            {item.barcode && <Text style={{ fontSize: 8, color: "#9CA3AF" }}>SKU: {item.barcode}</Text>}
+                            <Text style={{ fontWeight: "bold" }}>{item.products?.name}</Text>
+                            {item.products?.barcode && <Text style={{ fontSize: 8, color: "#9CA3AF" }}>SKU: {item.products?.barcode}</Text>}
                         </View>
                         <View style={styles.colQty}><Text>{item.quantity}</Text></View>
                         <View style={styles.colPrice}><Text>{formatEGP(item.unit_price)}</Text></View>
@@ -245,7 +246,7 @@ export const InvoicePDF = ({ sale }: InvoicePDFProps) => (
                         <Text style={styles.infoValue}>{formatEGP(sale.total_amount)}</Text>
                     </View>
                     <View style={styles.totalRow}>
-                        <Text style={styles.infoLabel}>Tax (0%)</Text>
+                        <Text style={styles.infoLabel}>Discount</Text>
                         <Text style={styles.infoValue}>{formatEGP(0)}</Text>
                     </View>
                     <View style={styles.grandTotalRow}>
@@ -264,12 +265,12 @@ export const InvoicePDF = ({ sale }: InvoicePDFProps) => (
             )}
 
             {/* Footer */}
-            <View style={styles.footer}>
+            {/* <View style={styles.footer}>
                 <Text style={styles.footerText}>Thank you for your business!</Text>
                 <Text style={[styles.footerText, { marginTop: 4 }]}>
                     SmartStock AI - Modern Solutions for Smart Businesses
                 </Text>
-            </View>
+            </View> */}
         </Page>
     </Document>
 );

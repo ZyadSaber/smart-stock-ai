@@ -5,33 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Download, Printer, Loader2 } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { InvoicePDF } from "./InvoicePDF";
-import { getSaleForInvoice } from "@/app/(dashboard)/sales/actions";
+// import { getSaleForInvoice } from "@/services/sales";
 import { toast } from "sonner";
+import { Sale } from "@/types/sales";
 
-interface GenerateInvoiceButtonProps {
-    saleId: string;
-    variant?: "outline" | "default" | "ghost" | "secondary";
-    className?: string;
-    showIconOnly?: boolean;
-}
-
-export function GenerateInvoiceButton({
-    saleId,
-    variant = "outline",
-    className,
-    showIconOnly = false
-}: GenerateInvoiceButtonProps) {
+export function GenerateInvoiceButton({ sale: saleData }: { sale: Sale }) {
     const [loading, setLoading] = useState(false);
 
     const handleGenerate = async (type: "download" | "print") => {
         try {
             setLoading(true);
-            const saleData = await getSaleForInvoice(saleId);
-
-            if (!saleData) {
-                toast.error("Failed to load sale data for invoice.");
-                return;
-            }
 
             // Generate the PDF blob
             const blob = await pdf(<InvoicePDF sale={saleData} />).toBlob();
@@ -40,7 +23,7 @@ export function GenerateInvoiceButton({
             if (type === "download") {
                 const link = document.createElement("a");
                 link.href = url;
-                link.download = `Invoice-${saleId.slice(0, 8).toUpperCase()}.pdf`;
+                link.download = `Invoice-${saleData.id.slice(0, 8).toUpperCase()}.pdf`;
                 link.click();
                 toast.success("Invoice downloaded successfully!");
             } else {
@@ -64,58 +47,27 @@ export function GenerateInvoiceButton({
         }
     };
 
-    if (showIconOnly) {
-        return (
-            <div className="flex items-center gap-1">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    disabled={loading}
-                    onClick={() => handleGenerate("download")}
-                    className="h-8 w-8 text-muted-foreground hover:text-primary"
-                    title="Download Invoice"
-                >
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    disabled={loading}
-                    onClick={() => handleGenerate("print")}
-                    className="h-8 w-8 text-muted-foreground hover:text-primary"
-                    title="Print Invoice"
-                >
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-                </Button>
-            </div>
-        );
-    }
-
     return (
-        <div className={`flex items-center gap-2 ${className}`}>
+        <div className="flex items-center gap-1">
             <Button
-                variant={variant}
-                size="sm"
+                variant="ghost"
+                size="icon"
                 disabled={loading}
                 onClick={() => handleGenerate("download")}
-                className="gap-2"
+                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                title="Download Invoice"
             >
-                {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                    <Download className="h-4 w-4" />
-                )}
-                Download Invoice
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             </Button>
             <Button
-                variant={variant}
-                size="sm"
+                variant="ghost"
+                size="icon"
                 disabled={loading}
                 onClick={() => handleGenerate("print")}
-                className="gap-2"
+                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                title="Print Invoice"
             >
-                <Printer className="h-4 w-4" />
-                Print
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
             </Button>
         </div>
     );
