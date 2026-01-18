@@ -1,6 +1,8 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import SalesReport from "@/components/reports/SalesReport"
-import { getReportMetadata } from "@/services/reports"
+import PurchaseReport from "@/components/reports/PurchaseReport"
+import StockReport from "@/components/reports/StockReport"
+import { getReportsPageMetadata } from "@/services/reports"
 import { resolvePageData } from "@/lib/page-utils"
 
 interface ReportsPageProps {
@@ -8,7 +10,8 @@ interface ReportsPageProps {
 }
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
-    const metadata = await resolvePageData(searchParams, getReportMetadata);
+    const metadata = await resolvePageData(searchParams, getReportsPageMetadata);
+    if (!metadata) return null;
 
     return (
         <div className="p-8 space-y-6">
@@ -18,7 +21,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                     <p className="text-muted-foreground">Manage reports and View numbers.</p>
                 </div>
             </div>
-            <Tabs defaultValue="sales" className="w-full">
+            <Tabs defaultValue="purchases" className="w-full">
                 <TabsList className="w-full p-1.5 h-12">
                     <TabsTrigger value="sales">Sales</TabsTrigger>
                     <TabsTrigger value="purchases">Purchases</TabsTrigger>
@@ -29,8 +32,12 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                         customers={metadata.customers}
                     />
                 </TabsContent>
-                <TabsContent value="purchases">Purchases</TabsContent>
-                <TabsContent value="stock">Stock</TabsContent>
+                <TabsContent value="purchases">
+                    <PurchaseReport suppliers={metadata.suppliers} />
+                </TabsContent>
+                <TabsContent value="stock">
+                    <StockReport products={metadata.products} warehouses={metadata.warehouses} />
+                </TabsContent>
             </Tabs>
         </div>
     )

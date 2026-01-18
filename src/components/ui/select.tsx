@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon, X } from "lucide-react"
 import { Label } from "@/components/ui/label";
 
 import { cn } from "@/lib/utils"
@@ -250,7 +250,21 @@ export function SelectField<T extends { key: string; label: string }>({
         disabled={disabled}
       >
         <SelectTrigger className={cn("w-full", !!error && "border-destructive")}>
-          <SelectValue placeholder={placeholder ? placeholder : `Select ${label.toLowerCase()}`} />
+          <div className="flex items-center gap-2 overflow-hidden">
+            {value && (
+              <span
+                className="pointer-events-auto cursor-pointer p-0.5 hover:bg-muted rounded-md transition-colors"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onValueChange("")
+                }}
+              >
+                <X className="size-3.5 opacity-50 hover:opacity-100" />
+              </span>
+            )}
+            <SelectValue placeholder={placeholder ? placeholder : `Select ${label.toLowerCase()}`} />
+          </div>
         </SelectTrigger>
         <SelectContent
           position="popper"

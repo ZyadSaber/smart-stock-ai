@@ -13,8 +13,8 @@ const menuItems = [
     { name: 'Stock Movements', icon: ArrowRight, href: 'stock-movements' },
     { name: 'Purchases', icon: CreditCard, href: 'purchases' },
     { name: 'Sales', icon: ShoppingCart, href: 'sales' },
-    { name: 'Users', icon: Users, href: 'users' },
     { name: 'Reports', icon: FileSpreadsheet, href: 'reports' },
+    { name: 'Users', icon: Users, href: 'users' },
 ]
 
 export function NavLinks({ userRole }: { userRole?: Record<string, boolean> }) {
