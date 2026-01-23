@@ -69,7 +69,7 @@ export async function getSalesReportAction(filters: SalesReportFilters) {
               name
             )
           )
-      `
+      `,
   );
 
   // Apply basic tenant filters
@@ -159,7 +159,7 @@ export async function getSalesReportAction(filters: SalesReportFilters) {
 }
 
 export async function getReportsPageMetadata(
-  searchParams: { organization_id?: string; branch_id?: string } = {}
+  searchParams: { organization_id?: string; branch_id?: string } = {},
 ) {
   const context = await getTenantContext();
   if (!context) return null;
@@ -288,7 +288,7 @@ export async function getSalesReportCardsData(filters: SalesReportFilters) {
       totalRevenue: acc.totalRevenue + Number(sale.total_amount),
       totalProfit: acc.totalProfit + Number(sale.profit_amount),
     }),
-    { totalSales: 0, totalRevenue: 0, totalProfit: 0 }
+    { totalSales: 0, totalRevenue: 0, totalProfit: 0 },
   );
 
   const now = new Date();
@@ -300,10 +300,10 @@ export async function getSalesReportCardsData(filters: SalesReportFilters) {
     today: sales.filter((s) => isToday(parseISO(s.created_at))).length,
     yesterday: sales.filter((s) => isYesterday(parseISO(s.created_at))).length,
     last15Days: sales.filter((s) =>
-      isAfter(parseISO(s.created_at), fifteenDaysAgo)
+      isAfter(parseISO(s.created_at), fifteenDaysAgo),
     ).length,
     last30Days: sales.filter((s) =>
-      isAfter(parseISO(s.created_at), thirtyDaysAgo)
+      isAfter(parseISO(s.created_at), thirtyDaysAgo),
     ).length,
   };
 
@@ -361,7 +361,7 @@ export async function getPurchaseReportAction(filters: PurchaseReportFilters) {
         name
       )
     )
-  `
+  `,
   );
 
   if (context.isSuperAdmin) {
@@ -424,7 +424,7 @@ export async function getPurchaseReportAction(filters: PurchaseReportFilters) {
 }
 
 export async function getPurchaseReportCardsData(
-  filters: PurchaseReportFilters
+  filters: PurchaseReportFilters,
 ) {
   const context = await getTenantContext();
   if (!context) return { error: "Unauthorized" };
@@ -496,14 +496,14 @@ export async function getPurchaseReportCardsData(
         totalSpending: acc.totalSpending + Number(p.total_amount),
       };
     },
-    { totalPurchases: 0, totalSpending: 0 }
+    { totalPurchases: 0, totalSpending: 0 },
   );
 
   const supplierKeys = Object.keys(supplierCounts);
   const topSupplierId =
     supplierKeys.length > 0
       ? supplierKeys.reduce((a, b) =>
-          supplierCounts[a].count > supplierCounts[b].count ? a : b
+          supplierCounts[a].count > supplierCounts[b].count ? a : b,
         )
       : "";
   const topSupplierName = topSupplierId
@@ -519,10 +519,10 @@ export async function getPurchaseReportCardsData(
     yesterday: purchases.filter((p) => isYesterday(parseISO(p.created_at)))
       .length,
     last15Days: purchases.filter((p) =>
-      isAfter(parseISO(p.created_at), fifteenDaysAgo)
+      isAfter(parseISO(p.created_at), fifteenDaysAgo),
     ).length,
     last30Days: purchases.filter((p) =>
-      isAfter(parseISO(p.created_at), thirtyDaysAgo)
+      isAfter(parseISO(p.created_at), thirtyDaysAgo),
     ).length,
   };
 
@@ -557,28 +557,22 @@ export async function getStockReportAction(filters: StockReportFilters) {
   }
 
   // 1. Fetch Stock Data
-  let stockQuery = supabase.from("product_stocks").select(`
-    id,
-    quantity,
-    product_id,
-    warehouse_id,
-    products (name, barcode, cost_price),
-    warehouses (name)
-  `);
+  let stockQuery = supabase
+    .from("view_product_stock_valuation")
+    .select(`*`)
+    .order("warehouse_id", { ascending: true })
+    .order("stock_level", { ascending: false });
 
-  if (context.isSuperAdmin) {
-    if (activeBranchId) {
-      stockQuery = stockQuery.eq("branch_id", activeBranchId);
-    } else if (activeOrgId) {
-      const { data: orgBranches } = await supabase
-        .from("branches")
-        .select("id")
-        .eq("organization_id", activeOrgId);
-      const branchIds = orgBranches?.map((b) => b.id) || [];
-      stockQuery = stockQuery.in("branch_id", branchIds);
-    }
-  } else {
-    stockQuery = applyBranchFilter(stockQuery, context);
+  if (activeBranchId) {
+    // Show warehouses belonging to the selected branch OR warehouses with no branch (global)
+    stockQuery = stockQuery.or(
+      `branch_id.eq.${activeBranchId},branch_id.is.null`,
+    );
+  }
+
+  if (activeOrgId) {
+    // Always filter by organization to maintain multi-tenancy boundaries
+    stockQuery = stockQuery.eq("organization_id", activeOrgId);
   }
 
   if (filters.product_id)
@@ -587,22 +581,16 @@ export async function getStockReportAction(filters: StockReportFilters) {
     stockQuery = stockQuery.eq("warehouse_id", filters.warehouse_id);
 
   const { data: stocks, error: stockError } = await stockQuery;
-  if (stockError) return { error: "Failed to fetch stock data" };
+
+  if (stockError) {
+    console.error("Stock Report Error:", stockError);
+    return { error: "Failed to fetch stock data" };
+  }
 
   // 2. Fetch Stock Movements
-  let movementsQuery = supabase.from("stock_movements").select(`
-    id,
-    quantity,
-    notes,
-    created_at,
-    product_id,
-    from_warehouse_id,
-    to_warehouse_id,
-    products (name, barcode),
-    from_warehouse:warehouses!stock_movements_from_warehouse_id_fkey (name),
-    to_warehouse:warehouses!stock_movements_to_warehouse_id_fkey (name),
-    created_by_user:profiles!stock_movements_created_by_profiles_fkey (full_name)
-  `);
+  let movementsQuery = supabase
+    .from("view_stock_movements_detailed")
+    .select("*");
 
   if (context.isSuperAdmin) {
     if (activeBranchId) {
@@ -622,25 +610,26 @@ export async function getStockReportAction(filters: StockReportFilters) {
   if (filters.product_id)
     movementsQuery = movementsQuery.eq("product_id", filters.product_id);
 
-  const { data: movements, error: moveError } = await movementsQuery
-    .order("created_at", { ascending: false })
-    .limit(20);
-  if (moveError) return { error: "Failed to fetch stock movements" };
+  const { data: movements, error: moveError } = await movementsQuery.order(
+    "created_at",
+    { ascending: false },
+  );
+
+  if (moveError) {
+    console.error("Stock Movements Error:", moveError);
+    return { error: "Failed to fetch stock movements" };
+  }
 
   // 3. Fetch Sales History
-  let salesHistoryQuery = supabase.from("sale_items").select(`
-    id,
-    quantity,
-    unit_price,
-    products (name, barcode, cost_price),
-    sales!inner (created_at)
-  `);
+  let salesHistoryQuery = supabase
+    .from("view_latest_sellin_products")
+    .select("*");
 
   if (context.isSuperAdmin) {
     if (activeBranchId) {
       salesHistoryQuery = salesHistoryQuery.eq(
         "sales.branch_id",
-        activeBranchId
+        activeBranchId,
       );
     } else if (activeOrgId) {
       const { data: orgBranches } = await supabase
@@ -653,93 +642,24 @@ export async function getStockReportAction(filters: StockReportFilters) {
   } else {
     salesHistoryQuery = salesHistoryQuery.eq(
       "sales.branch_id",
-      context.branchId
+      context.branchId,
     );
   }
 
   if (filters.product_id)
     salesHistoryQuery = salesHistoryQuery.eq("product_id", filters.product_id);
 
-  const { data: salesHistory, error: salesError } = await salesHistoryQuery
-    .order("created_at", { foreignTable: "sales", ascending: false })
-    .limit(50);
-  if (salesError) return { error: "Failed to fetch sales history" };
-
-  interface StockRaw {
-    id: string;
-    quantity: number;
-    product_id: string;
-    warehouse_id: string;
-    products:
-      | { name: string; barcode: string; cost_price: number }
-      | { name: string; barcode: string; cost_price: number }[];
-    warehouses: { name: string } | { name: string }[];
-  }
-
-  interface MovementRaw {
-    id: string;
-    quantity: number;
-    notes: string;
-    created_at: string;
-    from_warehouse_id: string;
-    to_warehouse_id: string;
-    products:
-      | { name: string; barcode: string }
-      | { name: string; barcode: string }[];
-    from_warehouse: { name: string } | { name: string }[];
-    to_warehouse: { name: string } | { name: string }[];
-  }
-
-  interface SalesHistoryRaw {
-    id: string;
-    quantity: number;
-    unit_price: number;
-    total_price: number;
-    products:
-      | { name: string; barcode: string; cost_price: number }
-      | { name: string; barcode: string; cost_price: number }[];
-    sales: { created_at: string } | { created_at: string }[];
+  const { data: salesHistory, error: salesError } = await salesHistoryQuery;
+  if (salesError) {
+    console.error(salesError);
+    return { error: "Failed to fetch sales history" };
   }
 
   return {
     data: {
-      stocks: ((stocks as unknown as StockRaw[]) || []).map((s) => ({
-        ...s,
-        products: Array.isArray(s.products) ? s.products[0] : s.products,
-        warehouses: Array.isArray(s.warehouses)
-          ? s.warehouses[0]
-          : s.warehouses,
-      })),
-      movements: ((movements as unknown as MovementRaw[]) || []).map((m) => ({
-        ...m,
-        products: Array.isArray(m.products) ? m.products[0] : m.products,
-        from_warehouse: Array.isArray(m.from_warehouse)
-          ? m.from_warehouse[0]
-          : m.from_warehouse,
-        to_warehouse: Array.isArray(m.to_warehouse)
-          ? m.to_warehouse[0]
-          : m.to_warehouse,
-      })),
-      salesHistory: ((salesHistory as unknown as SalesHistoryRaw[]) || []).map(
-        (s) => {
-          const p = Array.isArray(s.products) ? s.products[0] : s.products;
-          const sale = Array.isArray(s.sales) ? s.sales[0] : s.sales;
-          const costPrice = Number(p?.cost_price || 0);
-          const sellPrice = Number(s.unit_price || 0);
-          const qty = Number(s.quantity || 0);
-
-          return {
-            ...s,
-            product_name: p?.name,
-            product_barcode: p?.barcode,
-            cost_price: costPrice,
-            total_cost: costPrice * qty,
-            total_sale: sellPrice * qty,
-            profit: (sellPrice - costPrice) * qty,
-            created_at: sale?.created_at,
-          };
-        }
-      ),
+      stocks: stocks || [],
+      movements: movements || [],
+      salesHistory: salesHistory || [],
     },
   };
 }
@@ -762,148 +682,105 @@ export async function getStockReportCardsData(filters: StockReportFilters) {
   }
 
   // 1. Fetch Global Stock Info for Cards (Filtered only by tenant)
-  let baseQuery = supabase.from("product_stocks").select(`
-    quantity,
-    product_id,
-    warehouse_id,
-    products (name, cost_price),
-    warehouses (name)
-  `);
+  let baseProductStockQuery = supabase
+    .from("warehouse_stock_summary")
+    .select("*");
 
-  if (context.isSuperAdmin) {
-    if (activeBranchId) {
-      baseQuery = baseQuery.eq("branch_id", activeBranchId);
-    } else if (activeOrgId) {
-      const { data: orgBranches } = await supabase
-        .from("branches")
-        .select("id")
-        .eq("organization_id", activeOrgId);
-      const branchIds = orgBranches?.map((b) => b.id) || [];
-      baseQuery = baseQuery.in("branch_id", branchIds);
-    }
-  } else {
-    baseQuery = applyBranchFilter(baseQuery, context);
+  if (activeBranchId) {
+    // Show warehouses belonging to the selected branch OR warehouses with no branch (global)
+    baseProductStockQuery = baseProductStockQuery.or(
+      `branch_id.eq.${activeBranchId},branch_id.is.null`,
+    );
   }
 
-  const { data: allStocks } = await baseQuery;
-
-  interface StockWithRelations {
-    quantity: number;
-    product_id: string;
-    warehouse_id: string;
-    products:
-      | { name: string; cost_price: number }
-      | { name: string; cost_price: number }[];
-    warehouses: { name: string } | { name: string }[];
+  if (activeOrgId) {
+    // Always filter by organization to maintain multi-tenancy boundaries
+    baseProductStockQuery = baseProductStockQuery.eq(
+      "organization_id",
+      activeOrgId,
+    );
   }
 
-  const stocksWithRelations =
-    (allStocks as unknown as StockWithRelations[]) || [];
+  const { data: allProductStocks } = await baseProductStockQuery;
 
-  // Process Card 1 (Current Stock/Value per Warehouse)
-  const warehouseStats: Record<
-    string,
-    { quantity: number; value: number; name: string }
-  > = {};
-  stocksWithRelations.forEach((s) => {
-    const wName =
-      (Array.isArray(s.warehouses) ? s.warehouses[0] : s.warehouses)?.name ||
-      "Default";
-    const pCost =
-      (Array.isArray(s.products) ? s.products[0] : s.products)?.cost_price || 0;
+  // Process Card 2 (Top Item per Warehouse)
+  let topSellinProducts = supabase.rpc("get_top_product_per_warehouse");
 
-    if (!warehouseStats[s.warehouse_id]) {
-      warehouseStats[s.warehouse_id] = { quantity: 0, value: 0, name: wName };
-    }
-    warehouseStats[s.warehouse_id].quantity += s.quantity;
-    warehouseStats[s.warehouse_id].value += s.quantity * Number(pCost);
-  });
+  if (activeBranchId) {
+    // Show warehouses belonging to the selected branch OR warehouses with no branch (global)
+    topSellinProducts = topSellinProducts.or(
+      `branch_id.eq.${activeBranchId},branch_id.is.null`,
+    );
+  }
 
-  // Process Card 2 & 3 (Top 2 Items and Low Stock Items per Warehouse)
-  const warehouseItems: Record<string, { name: string; quantity: number }[]> =
-    {};
-  stocksWithRelations.forEach((s) => {
-    const pName =
-      (Array.isArray(s.products) ? s.products[0] : s.products)?.name ||
-      "Unknown";
-    if (!warehouseItems[s.warehouse_id]) warehouseItems[s.warehouse_id] = [];
-    warehouseItems[s.warehouse_id].push({
-      name: pName,
-      quantity: s.quantity,
-    });
-  });
+  if (activeOrgId) {
+    // Always filter by organization to maintain multi-tenancy boundaries
+    topSellinProducts = topSellinProducts.eq("organization_id", activeOrgId);
+  }
 
-  const topItemsPerWarehouse = Object.entries(warehouseItems).map(
-    ([id, items]) => ({
-      warehouseName: warehouseStats[id].name,
-      items: items.sort((a, b) => b.quantity - a.quantity).slice(0, 2),
-    })
-  );
+  const { data: topSellinProductsData, error: topSellingProductsError } =
+    await topSellinProducts;
+  console.error(topSellingProductsError);
 
-  const lowStockItems = stocksWithRelations
-    .filter((s) => s.quantity < 5)
-    .map((s) => ({
-      name:
-        (Array.isArray(s.products) ? s.products[0] : s.products)?.name ||
-        "Unknown",
-      quantity: s.quantity,
-      warehouse:
-        (Array.isArray(s.warehouses) ? s.warehouses[0] : s.warehouses)?.name ||
-        "Default",
-    }))
-    .slice(0, 10);
+  // Process Card 3 (Low Stock Items)
+  let lowStockItemsQyery = supabase
+    .from("view_product_stock_valuation")
+    .select("*")
+    .lt("stock_level", 5)
+    .order("stock_level", { ascending: true });
+
+  if (activeBranchId) {
+    // Show warehouses belonging to the selected branch OR warehouses with no branch (global)
+    lowStockItemsQyery = lowStockItemsQyery.or(
+      `branch_id.eq.${activeBranchId},branch_id.is.null`,
+    );
+  }
+
+  if (activeOrgId) {
+    // Always filter by organization to maintain multi-tenancy boundaries
+    lowStockItemsQyery = lowStockItemsQyery.eq("organization_id", activeOrgId);
+  }
+
+  const { data: lowStockProducts } = await lowStockItemsQyery;
 
   // Process Card 4 (Latest 6 Sold Items)
   let salesQuery = supabase
-    .from("sale_items")
+    .from("view_latest_sellin_products")
     .select(
       `
-    quantity,
-    unit_price,
-    products (name),
-    sales!inner (created_at)
-  `
+        quantity,
+        unit_price,
+        product_name,
+        created_at
+  `,
     )
-    .order("created_at", { foreignTable: "sales", ascending: false })
     .limit(6);
 
   if (context.isSuperAdmin) {
     if (activeBranchId) {
-      salesQuery = salesQuery.eq("sales.branch_id", activeBranchId);
+      salesQuery = salesQuery.eq("branch_id", activeBranchId);
     } else if (activeOrgId) {
       const { data: orgBranches } = await supabase
         .from("branches")
         .select("id")
         .eq("organization_id", activeOrgId);
       const branchIds = orgBranches?.map((b) => b.id) || [];
-      salesQuery = salesQuery.in("sales.branch_id", branchIds);
+      salesQuery = salesQuery.in("branch_id", branchIds);
     }
   } else {
-    salesQuery = salesQuery.eq("sales.branch_id", context.branchId);
+    salesQuery = salesQuery.eq("branch_id", context.branchId);
   }
 
-  const { data: latestSales } = await salesQuery;
+  const { data: latestSales, error: latestSalesError } = await salesQuery;
 
-  interface SaleData {
-    quantity: number;
-    products: { name: string } | { name: string }[];
-    sales: { created_at: string } | { created_at: string }[];
-  }
-
-  const finalSales = (latestSales as unknown as SaleData[]) || [];
+  console.error(latestSalesError);
 
   return {
     data: {
-      warehouseStats: Object.values(warehouseStats),
-      topItems: topItemsPerWarehouse,
-      lowStock: lowStockItems || [],
-      latestSales: finalSales.map((s) => ({
-        name:
-          (Array.isArray(s.products) ? s.products[0] : s.products)?.name ||
-          "Unknown",
-        quantity: s.quantity,
-        time: (Array.isArray(s.sales) ? s.sales[0] : s.sales)?.created_at,
-      })),
+      warehouseStats: allProductStocks,
+      topItems: topSellinProductsData,
+      lowStock: lowStockProducts || [],
+      latestSales: latestSales || [],
     },
   };
 }

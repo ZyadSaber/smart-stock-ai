@@ -49,6 +49,8 @@ import {
     StockReportProps
 } from "@/types/reports"
 
+import LoadingIcon from "./LoadingIcon"
+
 const StockReport = ({ products, warehouses }: StockReportProps) => {
     const searchParams = useSearchParams()
     const [isLoading, startTransition] = useTransition();
@@ -99,8 +101,8 @@ const StockReport = ({ products, warehouses }: StockReportProps) => {
     const chartData = useMemo(() => {
         return formData.cardsData?.warehouseStats.map(w => ({
             name: w.name,
-            Stock: w.quantity,
-            Value: w.value
+            Stock: w.items_quantity,
+            Value: w.total_products
         })) || []
     }, [formData.cardsData]);
 
@@ -164,112 +166,139 @@ const StockReport = ({ products, warehouses }: StockReportProps) => {
             {/* Dashboard Cards Row */}
             <div className="grid gap-4 md:grid-cols-4">
                 {/* 1. Global Stock Summary */}
-                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                            <WarehouseIcon className="h-3 w-3 text-blue-500" />
-                            Current Stock Value
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-2">
-                        <div className="space-y-4">
-                            {formData.cardsData?.warehouseStats.slice(0, 3).map((w, idx) => (
-                                <div key={idx} className="flex justify-between items-center border-b border-white/5 pb-2 last:border-0">
-                                    <div className="flex flex-col">
-                                        <span className="text-xs font-semibold">{w.name}</span>
-                                        <span className="text-[10px] text-muted-foreground">{w.quantity} items</span>
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md gap-1">
+                    {isLoading ?
+                        <LoadingIcon />
+                        :
+                        <>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                                    <WarehouseIcon className="h-3 w-3 text-blue-500" />
+                                    Current Stock Value
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-2">
+                                <div className="max-h-[160px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                                    <div className="space-y-2">
+                                        {formData.cardsData?.warehouseStats.map((w, idx) => (
+                                            <div key={idx} className="flex justify-between items-center border-b border-white/5 last:border-0">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-semibold">{w.name}</span>
+                                                    <span className="text-[10px] text-muted-foreground">{w.total_products} items</span>
+                                                </div>
+                                                <span className="text-xs font-bold text-blue-500">{formatEGP(w.items_quantity)}</span>
+                                            </div>
+                                        ))}
+                                        {!formData.cardsData && (
+                                            <div className="py-4 text-center text-[10px] text-muted-foreground italic">Fetch data to see summary</div>
+                                        )}
                                     </div>
-                                    <span className="text-xs font-bold text-blue-500">{formatEGP(w.value)}</span>
                                 </div>
-                            ))}
-                            {!formData.cardsData && (
-                                <div className="py-4 text-center text-[10px] text-muted-foreground italic">Fetch data to see summary</div>
-                            )}
-                        </div>
-                    </CardContent>
+                            </CardContent>
+                        </>
+                    }
                 </Card>
 
                 {/* 2. Top Items per Warehouse */}
-                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                            <TrendingUp className="h-3 w-3 text-emerald-500" />
-                            Top 2 Items
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-2 px-3">
-                        <div className="space-y-3">
-                            {formData.cardsData?.topItems.slice(0, 3).map((w, idx) => (
-                                <div key={idx} className="space-y-1">
-                                    <span className="text-[9px] font-bold text-muted-foreground uppercase">{w.warehouseName}</span>
-                                    {w.items.map((item, i) => (
-                                        <div key={i} className="flex justify-between text-[11px] items-center">
-                                            <span className="truncate max-w-[120px]">{item.name}</span>
-                                            <span className="font-bold text-emerald-500">x{item.quantity}</span>
-                                        </div>
-                                    ))}
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md gap-1">
+                    {isLoading ?
+                        <LoadingIcon />
+                        :
+                        <>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                                    <TrendingUp className="h-3 w-3 text-emerald-500" />
+                                    Top Warehouses Items
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-2">
+                                <div className="max-h-[160px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                                    <div className="space-y-2">
+                                        {formData.cardsData?.topItems.map((w, idx) => (
+                                            <div key={idx} className="space-y-1 flex justify-between text-[10px] items-center">
+                                                <span className="text-[14px] font-bold text-muted-foreground uppercase">{w.warehouse_name}</span>
+                                                <span className="font-bold text-emerald-500">{w.product_name} x{w.total_quantity_sold}</span>
+                                            </div>
+                                        ))}
+                                        {!formData.cardsData && (
+                                            <div className="py-4 text-center text-[10px] text-muted-foreground italic">Fetch data to see summary</div>
+                                        )}
+                                    </div>
                                 </div>
-                            ))}
-                            {!formData.cardsData && (
-                                <div className="py-4 text-center text-[10px] text-muted-foreground italic">No data</div>
-                            )}
-                        </div>
-                    </CardContent>
+                            </CardContent>
+                        </>
+                    }
                 </Card>
 
                 {/* 3. Low Stock Items */}
-                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                            <AlertTriangle className="h-3 w-3 text-orange-500" />
-                            Low Stock Alert
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-2">
-                        <div className="space-y-2">
-                            {formData.cardsData?.lowStock.slice(0, 5).map((item, idx) => (
-                                <div key={idx} className="flex justify-between items-center text-[11px]">
-                                    <div className="flex flex-col">
-                                        <span className="font-semibold">{item.name}</span>
-                                        <span className="text-[9px] text-muted-foreground">{item.warehouse}</span>
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md gap-1">
+                    {isLoading ?
+                        <LoadingIcon />
+                        :
+                        <>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                                    <AlertTriangle className="h-3 w-3 text-orange-500" />
+                                    Low Stock Alert
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-2">
+                                <div className="max-h-[160px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                                    <div className="space-y-1">
+                                        {formData.cardsData?.lowStock.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-center text-[11px]">
+                                                <div className="flex flex-col">
+                                                    <span className="font-semibold">{item.product_name}</span>
+                                                    <span className="text-[9px] text-muted-foreground">{item.warehouse_name}</span>
+                                                </div>
+                                                <Badge variant="outline" className="text-[9px] bg-orange-500/10 text-orange-600 border-orange-500/20">{item.stock_level}</Badge>
+                                            </div>
+                                        ))}
+                                        {formData.cardsData?.lowStock.length === 0 && (
+                                            <div className="py-4 text-center text-[10px] text-muted-foreground italic">All good!</div>
+                                        )}
+                                        {!formData.cardsData && (
+                                            <div className="py-4 text-center text-[10px] text-muted-foreground italic">No data</div>
+                                        )}
                                     </div>
-                                    <Badge variant="outline" className="text-[9px] bg-orange-500/10 text-orange-600 border-orange-500/20">{item.quantity}</Badge>
                                 </div>
-                            ))}
-                            {formData.cardsData?.lowStock.length === 0 && (
-                                <div className="py-4 text-center text-[10px] text-muted-foreground italic">All good!</div>
-                            )}
-                            {!formData.cardsData && (
-                                <div className="py-4 text-center text-[10px] text-muted-foreground italic">No data</div>
-                            )}
-                        </div>
-                    </CardContent>
+                            </CardContent>
+                        </>
+                    }
                 </Card>
 
                 {/* 4. Latest Sold Items */}
-                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md">
-                    <CardHeader className="pb-2 border-b border-white/5">
-                        <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                            <TrendingUp className="h-3 w-3 text-primary" />
-                            Latest 6 Sold
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-2 px-3">
-                        <div className="space-y-1">
-                            {formData.cardsData?.latestSales.map((item, idx) => (
-                                <div key={idx} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
-                                    <div className="flex flex-col min-w-0">
-                                        <span className="text-[10px] font-semibold truncate">{item.name}</span>
-                                        <span className="text-[8px] text-muted-foreground">{new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md gap-1">
+                    {isLoading ?
+                        <LoadingIcon />
+                        :
+                        <>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                                    <TrendingUp className="h-3 w-3 text-primary" />
+                                    Latest 6 Sold
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-2">
+                                <div className="max-h-[160px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                                    <div className="space-y-1">
+                                        {formData.cardsData?.latestSales.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-[10px] font-semibold truncate">{item.product_name}</span>
+                                                    <span className="text-[8px] text-muted-foreground">{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                </div>
+                                                <span className="text-[10px] font-bold text-primary">x{item.quantity}</span>
+                                            </div>
+                                        ))}
+                                        {!formData.cardsData && (
+                                            <div className="py-4 text-center text-[10px] text-muted-foreground italic">No data</div>
+                                        )}
                                     </div>
-                                    <span className="text-[10px] font-bold text-primary">x{item.quantity}</span>
                                 </div>
-                            ))}
-                            {!formData.cardsData && (
-                                <div className="py-4 text-center text-[10px] text-muted-foreground italic">No data</div>
-                            )}
-                        </div>
-                    </CardContent>
+                            </CardContent>
+                        </>
+                    }
                 </Card>
             </div>
 
@@ -317,16 +346,16 @@ const StockReport = ({ products, warehouses }: StockReportProps) => {
                                                 <TableRow key={s.id} className="hover:bg-muted/20 transition-colors border-b border-white/5 last:border-0">
                                                     <TableCell>
                                                         <div className="flex flex-col">
-                                                            <span className="font-medium text-sm">{s.products?.name}</span>
-                                                            <span className="text-[10px] text-muted-foreground">{s.products?.barcode}</span>
+                                                            <span className="font-medium text-sm">{s.product_name}</span>
+                                                            <span className="text-[10px] text-muted-foreground">{s.barcode}</span>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="text-sm">{s.warehouses?.name}</TableCell>
+                                                    <TableCell className="text-sm">{s.warehouse_name}</TableCell>
                                                     <TableCell className="text-right font-mono font-bold">
-                                                        <span className={s.quantity < 5 ? "text-orange-600" : ""}>{s.quantity}</span>
+                                                        <span className={s.quantity < 5 ? "text-orange-600" : ""}>{s.stock_level}</span>
                                                     </TableCell>
-                                                    <TableCell className="text-right text-sm">{formatEGP(s.products?.cost_price || 0)}</TableCell>
-                                                    <TableCell className="text-right font-bold text-primary">{formatEGP(s.quantity * (s.products?.cost_price || 0))}</TableCell>
+                                                    <TableCell className="text-right text-sm">{formatEGP(s.last_cost || 0)}</TableCell>
+                                                    <TableCell className="text-right font-bold text-primary">{formatEGP(s.total_inventory_value)}</TableCell>
                                                 </TableRow>
                                             ))
                                         )}
@@ -356,35 +385,44 @@ const StockReport = ({ products, warehouses }: StockReportProps) => {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {formData.movements.map((m) => (
-                                        <TableRow key={m.id} className="text-xs">
-                                            <TableCell>
-                                                {!m.from_warehouse_id && m.to_warehouse_id ? (
-                                                    <Badge className="bg-emerald-500/10 text-emerald-600 border-none flex items-center w-fit gap-1">
-                                                        <ArrowDownLeft className="h-3 w-3" /> IN
-                                                    </Badge>
-                                                ) : m.from_warehouse_id && !m.to_warehouse_id ? (
-                                                    <Badge className="bg-orange-500/10 text-orange-600 border-none flex items-center w-fit gap-1">
-                                                        <ArrowUpRight className="h-3 w-3" /> OUT
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="outline" className="flex items-center w-fit gap-1">TRANSFER</Badge>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="font-medium">{m.products?.name}</TableCell>
-                                            <TableCell className="text-[10px]">
-                                                {m.from_warehouse?.name || "System"} → {m.to_warehouse?.name || "Customer/Supplier"}
-                                            </TableCell>
-                                            <TableCell className="text-right font-bold">{m.quantity}</TableCell>
-                                            <TableCell className="text-right text-muted-foreground whitespace-nowrap">
-                                                {new Date(m.created_at).toLocaleDateString()}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    {formData.movements.length === 0 && (
+                                    {isLoading ? (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">No movements recorded.</TableCell>
+                                            <TableCell colSpan={5} className="text-center py-12">
+                                                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                                            </TableCell>
                                         </TableRow>
+                                    ) : formData.movements.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="text-center py-12 text-muted-foreground italic">
+                                                No movements data found.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        formData.movements.map((m) => (
+                                            <TableRow key={m.id} className="text-xs">
+                                                <TableCell>
+                                                    {!m.from_warehouse_id && m.to_warehouse_id ? (
+                                                        <Badge className="bg-emerald-500/10 text-emerald-600 border-none flex items-center w-fit gap-1">
+                                                            <ArrowDownLeft className="h-3 w-3" /> IN
+                                                        </Badge>
+                                                    ) : m.from_warehouse_id && !m.to_warehouse_id ? (
+                                                        <Badge className="bg-orange-500/10 text-orange-600 border-none flex items-center w-fit gap-1">
+                                                            <ArrowUpRight className="h-3 w-3" /> OUT
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className="flex items-center w-fit gap-1">TRANSFER</Badge>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="font-medium">{m.product_name}</TableCell>
+                                                <TableCell className="text-[10px]">
+                                                    {m.from_warehouse_name || "System"} → {m.to_warehouse_name || "Customer/Supplier"}
+                                                </TableCell>
+                                                <TableCell className="text-right font-bold">{m.quantity}</TableCell>
+                                                <TableCell className="text-right text-muted-foreground whitespace-nowrap">
+                                                    {new Date(m.created_at).toLocaleDateString()}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
                                     )}
                                 </TableBody>
                             </Table>
@@ -420,29 +458,36 @@ const StockReport = ({ products, warehouses }: StockReportProps) => {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {formData.salesHistory.map((s) => (
-                                            <TableRow key={s.id} className="hover:bg-muted/20 transition-colors border-b border-white/5 last:border-0 text-xs">
-                                                <TableCell>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-medium">{s.product_name}</span>
-                                                        <span className="text-[10px] text-muted-foreground">{new Date(s.created_at).toLocaleDateString()}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right font-bold">{s.quantity}</TableCell>
-                                                <TableCell className="text-right text-muted-foreground">{formatEGP(s.cost_price)}</TableCell>
-                                                <TableCell className="text-right">{formatEGP(s.unit_price)}</TableCell>
-                                                <TableCell className="text-right font-bold text-primary">{formatEGP(s.total_sale)}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <span className={s.profit >= 0 ? "text-emerald-500 font-bold" : "text-red-500 font-bold"}>
-                                                        {formatEGP(s.profit)}
-                                                    </span>
+                                        {isLoading ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="text-center py-12">
+                                                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
-                                        {formData.salesHistory.length === 0 && (
+                                        ) : formData.salesHistory.length === 0 ? (
                                             <TableRow>
                                                 <TableCell colSpan={6} className="text-center py-8 text-muted-foreground italic">No sales history found.</TableCell>
                                             </TableRow>
+                                        ) : (
+                                            formData.salesHistory.map((s) => (
+                                                <TableRow key={s.id} className="hover:bg-muted/20 transition-colors border-b border-white/5 last:border-0 text-xs">
+                                                    <TableCell>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium">{s.product_name}</span>
+                                                            <span className="text-[10px] text-muted-foreground">{new Date(s.created_at).toLocaleDateString()}</span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-bold">{s.quantity}</TableCell>
+                                                    <TableCell className="text-right text-muted-foreground">{formatEGP(s.cost_price)}</TableCell>
+                                                    <TableCell className="text-right">{formatEGP(s.unit_price)}</TableCell>
+                                                    <TableCell className="text-right font-bold text-primary">{formatEGP(s.total_sale)}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <span className={s.profit >= 0 ? "text-emerald-500 font-bold" : "text-red-500 font-bold"}>
+                                                            {formatEGP(s.profit)}
+                                                        </span>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
                                         )}
                                     </TableBody>
                                 </Table>
@@ -506,7 +551,7 @@ const StockReport = ({ products, warehouses }: StockReportProps) => {
                                 <div>
                                     <p className="text-sm font-medium text-primary">Total Inventory Value</p>
                                     <p className="text-2xl font-bold">
-                                        {formatEGP(formData.cardsData?.warehouseStats.reduce((sum, w) => sum + w.value, 0) || 0)}
+                                        {formatEGP(formData.cardsData?.warehouseStats.reduce((sum, w) => sum + w.total_stock_valuation, 0) || 0)}
                                     </p>
                                 </div>
                             </div>

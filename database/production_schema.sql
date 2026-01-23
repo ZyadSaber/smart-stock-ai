@@ -415,6 +415,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Get product stock valuation
+CREATE OR REPLACE VIEW view_product_stock_valuation AS
+SELECT 
+    p.id AS product_id,
+    p.name AS product_name,
+    p.barcode,
+    p.cost_price AS last_cost,
+    ps.quantity AS stock_level,
+    -- القيمة الإجمالية لكل صنف داخل مخزن معين
+    (ps.quantity * p.cost_price) AS total_inventory_value,
+    w.id AS warehouse_id,
+    w.name AS warehouse_name,
+    w.branch_id,
+    p.organization_id,
+    c.name AS category_name
+FROM product_stocks ps
+JOIN products p ON ps.product_id = p.id
+JOIN warehouses w ON ps.warehouse_id = w.id
+LEFT JOIN categories c ON p.category_id = c.id;
+
 -- ========================================================
 -- 8. ROW LEVEL SECURITY (RLS)
 -- ========================================================
