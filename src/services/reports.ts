@@ -36,8 +36,21 @@ export async function getSalesReportAction(filters: SalesReportFilters) {
   const { data: stats, error: statsError } = await supabase
     .rpc("get_branch_sales_stats", {
       p_branch_id: activeBranchId,
+      p_customer_id: filters.customer_id || null,
+      p_from_date: filters.dateFrom || null,
+      p_to_date: filters.dateTo || null,
     })
     .single();
+
+  console.log(
+    "test",
+    await supabase.rpc("get_branch_sales_stats", {
+      p_branch_id: activeBranchId,
+      p_customer_id: filters.customer_id || null,
+      p_from_date: filters.dateFrom,
+      p_to_date: filters.dateTo,
+    }),
+  );
 
   if (statsError) {
     console.error("Sales Stats Error:", statsError);
