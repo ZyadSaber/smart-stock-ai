@@ -42,12 +42,11 @@ import {
 } from 'recharts';
 
 import {
-    StockData,
-    StockMovement,
     SalesHistoryItem,
-    StockReportCardsData,
     StockReportProps
 } from "@/types/reports"
+
+import { initialStockReportData } from "./constants"
 
 import LoadingIcon from "./LoadingIcon"
 
@@ -56,19 +55,8 @@ const StockReport = ({ products, warehouses }: StockReportProps) => {
     const [isLoading, startTransition] = useTransition();
 
     const { formData, handleFieldChange, resetForm, handleChangeMultiInputs } = useFormManager({
-        initialData: {
-            product_id: "",
-            warehouse_id: "",
-            stocks: [] as StockData[],
-            movements: [] as StockMovement[],
-            salesHistory: [] as SalesHistoryItem[],
-            cardsData: null as StockReportCardsData | null
-        }
+        initialData: initialStockReportData
     })
-
-    const handleReset = () => {
-        resetForm()
-    }
 
     const handleSearch = useCallback(() => {
         startTransition(async () => {
@@ -152,7 +140,7 @@ const StockReport = ({ products, warehouses }: StockReportProps) => {
                             <Button
                                 variant="outline"
                                 className="flex-1"
-                                onClick={handleReset}
+                                onClick={resetForm}
                                 disabled={isLoading}
                             >
                                 <RotateCcw className="h-4 w-4 md:mr-2" />
@@ -480,7 +468,7 @@ const StockReport = ({ products, warehouses }: StockReportProps) => {
                                                     <TableCell className="text-right font-bold">{s.quantity}</TableCell>
                                                     <TableCell className="text-right text-muted-foreground">{formatEGP(s.cost_price)}</TableCell>
                                                     <TableCell className="text-right">{formatEGP(s.unit_price)}</TableCell>
-                                                    <TableCell className="text-right font-bold text-primary">{formatEGP(s.total_sale)}</TableCell>
+                                                    <TableCell className="text-right font-bold text-primary">{formatEGP(s.total_sales)}</TableCell>
                                                     <TableCell className="text-right">
                                                         <span className={s.profit >= 0 ? "text-emerald-500 font-bold" : "text-red-500 font-bold"}>
                                                             {formatEGP(s.profit)}

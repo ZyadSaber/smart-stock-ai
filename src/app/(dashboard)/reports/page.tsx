@@ -21,7 +21,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                     <p className="text-muted-foreground">Manage reports and View numbers.</p>
                 </div>
             </div>
-            <Tabs defaultValue="stock" className="w-full">
+            <Tabs defaultValue="sales" className="w-full">
                 <TabsList className="w-full p-1.5 h-12">
                     <TabsTrigger value="sales">Sales</TabsTrigger>
                     <TabsTrigger value="purchases">Purchases</TabsTrigger>

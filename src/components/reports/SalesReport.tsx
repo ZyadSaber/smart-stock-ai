@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useMemo, useState, Fragment, useTransition, useCallback } from "react"
+import { memo, useState, Fragment, useTransition } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -19,7 +19,7 @@ import {
     RotateCcw
 } from "lucide-react"
 import { useFormManager } from "@/hooks"
-import { Sale, Customers } from "@/types/sales"
+import { Customers } from "@/types/sales"
 import { formatEGP } from "@/lib/utils"
 import { getSalesReportAction, getSalesReportCardsData } from "@/services/reports"
 import { resolveActionData } from "@/lib/page-utils"
@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { GenerateInvoiceButton } from "../sales/GenerateInvoiceButton"
+import LoadingIcon from "./LoadingIcon"
+import { initiaSalesReportData } from "./constants"
 
 interface SalesReportProps {
     customers: Customers[]
@@ -43,18 +45,8 @@ const SalesReport = ({ customers }: SalesReportProps) => {
     const [isLoading, startTransition] = useTransition();
 
 
-    const { formData, handleFieldChange, handleChange, resetForm } = useFormManager({
-        initialData: {
-            dateFrom: "",
-            dateTo: "",
-            customer_id: "",
-            sales: [] as Sale[],
-            cardsData: null as {
-                stats: Record<string, number>,
-                summary: Record<string, number>,
-                additionalMetrics: Record<string, number>
-            } | null
-        }
+    const { formData, handleFieldChange, handleChange, resetForm, handleChangeMultiInputs } = useFormManager({
+        initialData: initiaSalesReportData
     })
 
     const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
@@ -68,33 +60,17 @@ const SalesReport = ({ customers }: SalesReportProps) => {
         setExpandedRows({})
     }
 
-    const handleSearch = useCallback(() => {
+    const handleSearch = () => {
         startTransition(async () => {
             const [salesData, cardsData] = await Promise.all([
                 resolveActionData(getSalesReportAction, searchParams, formData),
                 resolveActionData(getSalesReportCardsData, searchParams, formData)
             ]);
 
-            if (salesData) handleFieldChange({ name: "sales", value: salesData });
-            if (cardsData) handleFieldChange({ name: "cardsData", value: cardsData });
+            if (salesData) handleChangeMultiInputs(salesData);
+            if (cardsData) handleChangeMultiInputs(cardsData);
         });
-    }, [formData, handleFieldChange, searchParams]);
-
-    const summary = useMemo(() => formData.sales.reduce((acc, sale) => ({
-        totalSales: acc.totalSales + 1,
-        totalRevenue: acc.totalRevenue + Number(sale.total_amount),
-        totalProfit: acc.totalProfit + Number(sale.profit_amount)
-    }), { totalSales: 0, totalRevenue: 0, totalProfit: 0 })
-        , [formData.sales])
-
-    const lastSoldItems = useMemo(() => {
-        return formData.sales
-            .flatMap(sale => sale.items_data.map(item => ({
-                ...item,
-                created_at: sale.created_at
-            })))
-            .slice(0, 5);
-    }, [formData.sales]);
+    };
 
     return (
         <div className="space-y-6">
@@ -162,125 +138,187 @@ const SalesReport = ({ customers }: SalesReportProps) => {
 
             {/* Task Cards Row */}
             <div className="grid gap-4 md:grid-cols-3">
-                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md overflow-hidden outline-1 outline-white/5">
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md flex flex-col h-full">
                     <CardHeader className="pb-2 border-b border-white/5">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
                             <Clock className="h-4 w-4 text-primary" />
                             Invoice Frequency
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <p className="text-[10px] text-muted-foreground uppercase">Today</p>
-                                <p className="text-xl font-bold">{formData.cardsData?.stats?.today || 0}</p>
+                    <CardContent className="pt-4 flex-1">
+                        {isLoading ?
+                            <LoadingIcon />
+                            :
+                            <div className="space-y-6 h-full flex flex-col justify-around">
+                                <div className="grid grid-cols-2 gap-4 border-b border-white/5 pb-4">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Today</p>
+                                        <p className="text-xl font-bold">{formData?.today_count || 0}</p>
+                                    </div>
+                                    <div className="space-y-1 text-right border-l border-white/5 pl-4">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Yesterday</p>
+                                        <p className="text-xl font-bold">{formData?.yesterday_count || 0}</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Last 15d</p>
+                                        <p className="text-xl font-bold">{formData?.last_15_days_count || 0}</p>
+                                    </div>
+                                    <div className="space-y-1 text-right border-l border-white/5 pl-4">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Last 30d</p>
+                                        <p className="text-xl font-bold">{formData?.last_30_days_count || 0}</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="space-y-1 text-right border-l border-white/5 pl-4">
-                                <p className="text-[10px] text-muted-foreground uppercase">Yesterday</p>
-                                <p className="text-xl font-bold">{formData.cardsData?.stats?.yesterday || 0}</p>
-                            </div>
-                            <div className="space-y-1 pt-2 border-t border-white/5">
-                                <p className="text-[10px] text-muted-foreground uppercase">Last 15d</p>
-                                <p className="text-xl font-bold">{formData.cardsData?.stats?.last15Days || 0}</p>
-                            </div>
-                            <div className="space-y-1 pt-2 text-right border-t border-l border-white/5 pl-4">
-                                <p className="text-[10px] text-muted-foreground uppercase">Last 30d</p>
-                                <p className="text-xl font-bold">{formData.cardsData?.stats?.last30Days || 0}</p>
-                            </div>
-                        </div>
+                        }
                     </CardContent>
                 </Card>
-                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md overflow-hidden outline-1 outline-white/5">
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md flex flex-col h-full">
                     <CardHeader className="pb-2 border-b border-white/5">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
                             <TrendingUp className="h-4 w-4 text-primary" />
                             Performance Insights
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <p className="text-[10px] text-muted-foreground uppercase">Avg. Value</p>
-                                <p className="text-xl font-bold text-primary">{formatEGP(formData.cardsData?.additionalMetrics?.avgInvoiceValue || 0)}</p>
-                                <p className="text-[9px] text-muted-foreground italic">Overall History</p>
+                    <CardContent className="pt-4 flex-1">
+                        {isLoading ?
+                            <LoadingIcon />
+                            :
+                            <div className="space-y-6 h-full flex flex-col justify-around">
+                                <div className="grid grid-cols-2 gap-4 border-b border-white/5 pb-4">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Avg. Value</p>
+                                        <p className="text-xl font-bold text-primary">{formatEGP(formData?.avg_invoice_value || 0)}</p>
+                                        <p className="text-[9px] text-muted-foreground italic">Overall History</p>
+                                    </div>
+                                    <div className="space-y-1 text-right border-l border-white/5 pl-4">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Profit Margin</p>
+                                        <p className="text-xl font-bold text-green-600">{(formData?.profit_margin_percent || 0).toFixed(1)}%</p>
+                                        <p className="text-[9px] text-muted-foreground italic">Net Efficiency</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Total Sales</p>
+                                        <p className="text-base font-bold text-gray text-blue-500">{formData.total_sales}</p>
+                                        <p className="text-[8px] text-muted-foreground italic">Lifetime Total Sales</p>
+                                    </div>
+                                    <div className="space-y-1 text-center border-l border-r border-white/5 px-2">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Total Revenue</p>
+                                        <p className="text-base font-bold text-green-500">{formData?.total_revenue}</p>
+                                        <p className="text-[8px] text-muted-foreground italic">Lifetime Total Revenue</p>
+                                    </div>
+                                    <div className="space-y-1 text-right pl-2">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Total Profit</p>
+                                        <p className="text-base font-bold text-purple-500">{formData?.total_profit}</p>
+                                        <p className="text-[8px] text-muted-foreground italic">Lifetime Total Profit</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="space-y-1 text-right border-l border-white/5 pl-4">
-                                <p className="text-[10px] text-muted-foreground uppercase">Profit Margin</p>
-                                <p className="text-xl font-bold text-green-600">{(formData.cardsData?.additionalMetrics?.profitMargin || 0).toFixed(1)}%</p>
-                                <p className="text-[9px] text-muted-foreground italic">Net Efficiency</p>
-                            </div>
-                        </div>
+                        }
                     </CardContent>
                 </Card>
-                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md overflow-hidden outline-1 outline-white/5">
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md gap-1">
                     <CardHeader className="pb-2 border-b border-white/5">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
                             <Package className="h-4 w-4 text-primary" />
-                            Recent Items Sold
+                            Top Customers Orders
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-2 px-3">
-                        <div className="space-y-1">
-                            {lastSoldItems.length > 0 ? (
-                                lastSoldItems.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center py-1.5 border-b border-white/5 last:border-0">
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="text-xs font-semibold truncate text-foreground/90">{item.products?.name}</span>
-                                            <span className="text-[9px] text-muted-foreground">{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <CardContent className="pt-2">
+                        {isLoading ?
+                            <div className="h-[160px]">
+                                <LoadingIcon />
+                            </div>
+                            :
+                            <div className="max-h-[160px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                                <div className="space-y-1">
+                                    {formData.topSellingCustomers.length > 0 ? (
+                                        formData.topSellingCustomers.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-center py-1.5 border-b border-white/5 last:border-0">
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-xs font-semibold truncate text-foreground/90">{item.customer_name}</span>
+                                                    <span className="text-[9px] text-muted-foreground">Total Invoices: {item.total_invoices}</span>
+                                                </div>
+                                                <div className="text-right flex flex-col">
+                                                    <span className="text-[10px] font-bold text-primary">{formatEGP(item.net_invoices_total)}</span>
+                                                    <span className="text-[9px] text-muted-foreground">{formatEGP(item.total_profit)}</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="py-8 text-center text-xs text-muted-foreground italic">
+                                            No items found.
                                         </div>
-                                        <div className="text-right flex flex-col">
-                                            <span className="text-[10px] font-bold text-primary">x{item.quantity}</span>
-                                            <span className="text-[9px] text-muted-foreground">{formatEGP(item.unit_price)}</span>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="py-8 text-center text-xs text-muted-foreground italic">
-                                    No items found.
+                                    )}
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        }
                     </CardContent>
                 </Card>
             </div>
 
             {/* Summary Cards */}
             <div className="grid gap-4 md:grid-cols-3">
-                <Card className="border-none shadow-sm shadow-black/5 bg-blue-500/10 backdrop-blur-md outline-1 outline-blue-500/20">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm text-blue-500 uppercase tracking-wider">Total Sales</CardTitle>
-                        <Receipt className="h-4 w-4 text-blue-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-blue-600">{summary.totalSales}</div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Filtered transactions
-                        </p>
-                    </CardContent>
+                <Card className="border-none shadow-sm shadow-black/5 bg-blue-500/10 backdrop-blur-md outline-1 outline-blue-500/20 py-2">
+                    {isLoading ?
+                        <LoadingIcon />
+                        :
+                        <>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+
+                                <CardTitle className="text-sm text-blue-500 uppercase tracking-wider">Total Sales</CardTitle>
+                                <Receipt className="h-4 w-4 text-blue-500" />
+                            </CardHeader>
+                            <CardContent>
+
+                                <>
+                                    <div className="text-2xl font-bold text-blue-600">{formData.filtered_stats.total_sales}</div>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Filtered transactions
+                                    </p>
+                                </>
+                            </CardContent>
+                        </>
+                    }
                 </Card>
-                <Card className="border-none shadow-sm shadow-black/5 bg-green-500/10 backdrop-blur-md outline-1 outline-green-500/20">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm text-green-500 uppercase tracking-wider">Total Revenue</CardTitle>
-                        <DollarSign className="h-4 w-4 text-green-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-600">{formatEGP(summary.totalRevenue)}</div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Gross sales value
-                        </p>
-                    </CardContent>
+                <Card className="border-none shadow-sm shadow-black/5 bg-green-500/10 backdrop-blur-md outline-1 outline-green-500/20 py-2">
+                    {isLoading ?
+                        <LoadingIcon />
+                        :
+                        <>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm text-green-500 uppercase tracking-wider">Total Revenue</CardTitle>
+                                <DollarSign className="h-4 w-4 text-green-500" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-green-600">{formatEGP(formData.filtered_stats.total_revenue)}</div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Gross sales value
+                                </p>
+                            </CardContent>
+                        </>
+                    }
                 </Card>
-                <Card className="border-none shadow-sm shadow-black/5 bg-purple-500/10 backdrop-blur-md outline-1 outline-purple-500/20">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm text-purple-500 uppercase tracking-wider">Total Profit</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-purple-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-purple-600">{formatEGP(summary.totalProfit)}</div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Net period earnings
-                        </p>
-                    </CardContent>
+                <Card className="border-none shadow-sm shadow-black/5 bg-purple-500/10 backdrop-blur-md outline-1 outline-purple-500/20 py-2">
+                    {isLoading ?
+                        <LoadingIcon />
+                        :
+                        <>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm text-purple-500 uppercase tracking-wider">Total Profit</CardTitle>
+                                <TrendingUp className="h-4 w-4 text-purple-500" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-purple-600">{formatEGP(formData.filtered_stats.total_profit)}</div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Net period earnings
+                                </p>
+                            </CardContent>
+                        </>
+                    }
                 </Card>
             </div>
 

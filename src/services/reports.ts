@@ -33,6 +33,17 @@ export async function getSalesReportAction(filters: SalesReportFilters) {
     activeBranchId = context.branchId || undefined;
   }
 
+  const { data: stats, error: statsError } = await supabase
+    .rpc("get_branch_sales_stats", {
+      p_branch_id: activeBranchId,
+    })
+    .single();
+
+  if (statsError) {
+    console.error("Sales Stats Error:", statsError);
+    return { error: statsError.message };
+  }
+
   let salesQuery = supabase.from("sales").select(
     `
           id,
@@ -155,7 +166,12 @@ export async function getSalesReportAction(filters: SalesReportFilters) {
     } as unknown as Sale;
   });
 
-  return { data: finalSales || [] };
+  return {
+    data: {
+      filtered_stats: stats,
+      sales: finalSales || [],
+    },
+  };
 }
 
 export async function getReportsPageMetadata(
@@ -241,7 +257,6 @@ export async function getSalesReportCardsData(filters: SalesReportFilters) {
   if (!context) return { error: "Unauthorized" };
 
   const supabase = await createClient();
-
   let activeOrgId: string | undefined = undefined;
   let activeBranchId: string | undefined = undefined;
 
@@ -253,71 +268,39 @@ export async function getSalesReportCardsData(filters: SalesReportFilters) {
     activeBranchId = context.branchId || undefined;
   }
 
-  let query = supabase
-    .from("sales")
-    .select("total_amount, profit_amount, created_at");
-
-  if (context.isSuperAdmin) {
-    if (activeBranchId) {
-      query = query.eq("branch_id", activeBranchId);
-    } else if (activeOrgId) {
-      const { data: orgBranches } = await supabase
-        .from("branches")
-        .select("id")
-        .eq("organization_id", activeOrgId);
-      const branchIds = orgBranches?.map((b) => b.id) || [];
-      query = query.in("branch_id", branchIds);
-    }
-  } else {
-    query = applyBranchFilter(query, context);
-  }
-
-  if (filters.customer_id) query = query.eq("customer_id", filters.customer_id);
-
-  const { data: sales, error } = await query;
+  const { data: stats, error } = await supabase
+    .rpc("get_branch_sales_stats", {
+      p_branch_id: activeBranchId,
+    })
+    .single();
 
   if (error) {
-    console.error("Sales Report Cards Error:", error);
-    return { error: "Failed to fetch card data" };
+    console.error("Sales Stats Error:", error);
+    return { error: error.message };
   }
 
-  // Summary logic (overall for the selected filters)
-  const summary = sales.reduce(
-    (acc, sale) => ({
-      totalSales: acc.totalSales + 1,
-      totalRevenue: acc.totalRevenue + Number(sale.total_amount),
-      totalProfit: acc.totalProfit + Number(sale.profit_amount),
-    }),
-    { totalSales: 0, totalRevenue: 0, totalProfit: 0 },
-  );
+  // 1. Fetch Stock Data
+  const topSellingCustomers = supabase
+    .from("view_top_selling_customers")
+    .select(`*`)
+    .limit(5)
+    .eq("branch_id", activeBranchId || null)
+    .eq("organization_id", activeOrgId || null);
 
-  const now = new Date();
-  const fifteenDaysAgo = subDays(now, 15);
-  const thirtyDaysAgo = subDays(now, 30);
+  const { data: topSellingCustomersData, error: topSellingCustomersError } =
+    await topSellingCustomers;
 
-  // Invoice Frequency logic
-  const stats = {
-    today: sales.filter((s) => isToday(parseISO(s.created_at))).length,
-    yesterday: sales.filter((s) => isYesterday(parseISO(s.created_at))).length,
-    last15Days: sales.filter((s) =>
-      isAfter(parseISO(s.created_at), fifteenDaysAgo),
-    ).length,
-    last30Days: sales.filter((s) =>
-      isAfter(parseISO(s.created_at), thirtyDaysAgo),
-    ).length,
+  if (topSellingCustomersError) {
+    console.error("Top Selling Customers Error:", topSellingCustomersError);
+    return { error: topSellingCustomersError.message };
+  }
+
+  return {
+    data: {
+      ...(stats || {}),
+      topSellingCustomers: topSellingCustomersData || [],
+    },
   };
-
-  // Logic for placeholders or additional metrics
-  const additionalMetrics = {
-    avgInvoiceValue:
-      summary.totalSales > 0 ? summary.totalRevenue / summary.totalSales : 0,
-    profitMargin:
-      summary.totalRevenue > 0
-        ? (summary.totalProfit / summary.totalRevenue) * 100
-        : 0,
-  };
-
-  return { data: { summary, stats, additionalMetrics } };
 }
 
 export async function getPurchaseReportAction(filters: PurchaseReportFilters) {
@@ -627,23 +610,17 @@ export async function getStockReportAction(filters: StockReportFilters) {
 
   if (context.isSuperAdmin) {
     if (activeBranchId) {
-      salesHistoryQuery = salesHistoryQuery.eq(
-        "sales.branch_id",
-        activeBranchId,
-      );
+      salesHistoryQuery = salesHistoryQuery.eq("branch_id", activeBranchId);
     } else if (activeOrgId) {
       const { data: orgBranches } = await supabase
         .from("branches")
         .select("id")
         .eq("organization_id", activeOrgId);
       const branchIds = orgBranches?.map((b) => b.id) || [];
-      salesHistoryQuery = salesHistoryQuery.in("sales.branch_id", branchIds);
+      salesHistoryQuery = salesHistoryQuery.in("branch_id", branchIds);
     }
   } else {
-    salesHistoryQuery = salesHistoryQuery.eq(
-      "sales.branch_id",
-      context.branchId,
-    );
+    salesHistoryQuery = applyBranchFilter(salesHistoryQuery, context);
   }
 
   if (filters.product_id)
@@ -651,7 +628,7 @@ export async function getStockReportAction(filters: StockReportFilters) {
 
   const { data: salesHistory, error: salesError } = await salesHistoryQuery;
   if (salesError) {
-    console.error(salesError);
+    console.error("Failed to fetch sales history", salesError);
     return { error: "Failed to fetch sales history" };
   }
 

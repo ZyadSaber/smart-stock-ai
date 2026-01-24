@@ -54,7 +54,7 @@ export interface SalesHistoryItem {
   unit_price: number;
   cost_price: number;
   total_cost: number;
-  total_sale: number;
+  total_sales: number;
   profit: number;
   created_at: string;
 }

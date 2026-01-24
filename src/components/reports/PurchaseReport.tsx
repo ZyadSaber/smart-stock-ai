@@ -19,7 +19,7 @@ import {
     RotateCcw
 } from "lucide-react"
 import { useFormManager } from "@/hooks"
-import { PurchaseOrder, Supplier } from "@/types/purchases"
+import { Supplier } from "@/types/purchases"
 import { formatEGP } from "@/lib/utils"
 import { getPurchaseReportAction, getPurchaseReportCardsData } from "@/services/reports"
 import { resolveActionData } from "@/lib/page-utils"
@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 
+import { initialPurchaseReportData } from "./constants"
+
 interface PurchaseReportProps {
     suppliers: Supplier[]
 }
@@ -42,21 +44,7 @@ const PurchaseReport = ({ suppliers }: PurchaseReportProps) => {
     const [isLoading, startTransition] = useTransition();
 
     const { formData, handleFieldChange, handleChange, resetForm } = useFormManager({
-        initialData: {
-            dateFrom: "",
-            dateTo: "",
-            supplier_id: "",
-            purchases: [] as PurchaseOrder[],
-            cardsData: null as {
-                stats: Record<string, number>,
-                summary: { totalPurchases: number; totalSpending: number },
-                additionalMetrics: {
-                    avgPurchaseValue: number;
-                    avgItemsPerInvoice: number;
-                    topSupplier: string;
-                }
-            } | null
-        }
+        initialData: initialPurchaseReportData
     })
 
     const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
