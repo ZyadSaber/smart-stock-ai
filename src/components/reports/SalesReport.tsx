@@ -1,6 +1,7 @@
 "use client"
 
 import { memo, useState, Fragment, useTransition } from "react"
+import dynamic from "next/dynamic"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,11 @@ import { Badge } from "@/components/ui/badge"
 import { GenerateInvoiceButton } from "../sales/GenerateInvoiceButton"
 import LoadingIcon from "./LoadingIcon"
 import { initiaSalesReportData } from "./constants"
+
+const SalesPDFButton = dynamic(() => import("./SalesPDFButton"), {
+    ssr: false,
+    loading: () => <Button disabled variant="outline" className="flex-1"><Loader2 className="animate-spin h-4 w-4" /></Button>
+});
 
 interface SalesReportProps {
     customers: Customers[]
@@ -88,14 +94,14 @@ const SalesReport = ({ customers }: SalesReportProps) => {
                             type="date"
                             label="Date From"
                             name="dateFrom"
-                            value={formData.dateFrom}
+                            value={formData.dateFrom || ""}
                             onChange={handleChange}
                         />
                         <Input
                             type="date"
                             label="Date To"
                             name="dateTo"
-                            value={formData.dateTo}
+                            value={formData.dateTo || ""}
                             onChange={handleChange}
                         />
 
@@ -131,6 +137,7 @@ const SalesReport = ({ customers }: SalesReportProps) => {
                                 <RotateCcw className="h-4 w-4 md:mr-2" />
                                 <span className="hidden md:inline">Clear</span>
                             </Button>
+                            <SalesPDFButton data={formData} isLoading={isLoading} />
                         </div>
                     </div>
                 </CardContent>

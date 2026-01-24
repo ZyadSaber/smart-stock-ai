@@ -13,3 +13,7 @@ export function formatEGP(amount: number) {
     maximumFractionDigits: 2,
   }).format(amount);
 }
+
+export function getTodayDateString() {
+  return new Date().toISOString().split("T")[0];
+}

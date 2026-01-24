@@ -6,6 +6,9 @@ import {
 } from "@/types/reports";
 import { PurchaseOrder } from "@/types/purchases";
 import { Sale } from "@/types/sales";
+import { getTodayDateString } from "@/lib/utils";
+
+const today = getTodayDateString();
 
 export const initialStockReportData = {
   product_id: "",
@@ -17,8 +20,8 @@ export const initialStockReportData = {
 };
 
 export const initialPurchaseReportData = {
-  dateFrom: "",
-  dateTo: "",
+  dateFrom: today,
+  dateTo: today,
   supplier_id: "",
   purchases: [] as PurchaseOrder[],
   cardsData: null as {
@@ -38,8 +41,8 @@ export const initiaSalesReportData = {
     total_revenue: 0,
     total_profit: 0,
   },
-  dateFrom: null,
-  dateTo: null,
+  dateFrom: today,
+  dateTo: today,
   customer_id: "",
   sales: [] as Sale[],
   today_count: 0,
