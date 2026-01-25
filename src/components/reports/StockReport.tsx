@@ -49,6 +49,12 @@ import {
 import { initialStockReportData } from "./constants"
 
 import LoadingIcon from "./LoadingIcon"
+import dynamic from "next/dynamic";
+
+const StockPDFButton = dynamic(() => import("./StockPDFButton"), {
+    ssr: false,
+    loading: () => <Button disabled variant="outline" className="flex-1"><Loader2 className="animate-spin h-4 w-4" /></Button>
+});
 
 const StockReport = ({ products, warehouses }: StockReportProps) => {
     const searchParams = useSearchParams()
@@ -124,7 +130,7 @@ const StockReport = ({ products, warehouses }: StockReportProps) => {
                             placeholder="All Warehouses"
                             showSearch
                         />
-                        <div className="flex items-end gap-2">
+                        <div className="flex items-end gap-2 flex-wrap">
                             <Button
                                 className="flex-2 bg-primary hover:bg-primary/90"
                                 onClick={handleSearch}
@@ -146,6 +152,7 @@ const StockReport = ({ products, warehouses }: StockReportProps) => {
                                 <RotateCcw className="h-4 w-4 md:mr-2" />
                                 <span className="hidden md:inline">Clear</span>
                             </Button>
+                            <StockPDFButton data={formData} isLoading={isLoading} />
                         </div>
                     </div>
                 </CardContent>
@@ -517,7 +524,14 @@ const StockReport = ({ products, warehouses }: StockReportProps) => {
                                         />
                                         <Bar dataKey="Stock" radius={[4, 4, 0, 0]}>
                                             {chartData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={`hsl(var(--primary) / ${0.8 - (index * 0.1)})`} />
+                                                <Cell key={`cell-${index}`} fill={[
+                                                    '#3b82f6', // blue-500
+                                                    '#10b981', // emerald-500
+                                                    '#f59e0b', // amber-500
+                                                    '#8b5cf6', // violet-500
+                                                    '#ec4899', // pink-500
+                                                    '#06b6d4', // cyan-500
+                                                ][index % 6]} />
                                             ))}
                                         </Bar>
                                     </BarChart>
