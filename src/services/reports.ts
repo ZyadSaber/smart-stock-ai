@@ -7,7 +7,6 @@ import {
   applyOrganizationFilter,
 } from "@/lib/tenant";
 import { Sale } from "@/types/sales";
-import { isToday, isYesterday, subDays, isAfter, parseISO } from "date-fns";
 
 import {
   SalesReportFilters,
@@ -41,16 +40,6 @@ export async function getSalesReportAction(filters: SalesReportFilters) {
       p_to_date: filters.dateTo || null,
     })
     .single();
-
-  console.log(
-    "test",
-    await supabase.rpc("get_branch_sales_stats", {
-      p_branch_id: activeBranchId,
-      p_customer_id: filters.customer_id || null,
-      p_from_date: filters.dateFrom,
-      p_to_date: filters.dateTo,
-    }),
-  );
 
   if (statsError) {
     console.error("Sales Stats Error:", statsError);
@@ -416,7 +405,16 @@ export async function getPurchaseReportAction(filters: PurchaseReportFilters) {
     };
   });
 
-  return { data: finalPurchases || [] };
+  return {
+    data: {
+      purchases: finalPurchases || [],
+      filterd_stats: {
+        total_purchases: finalPurchases?.length || 0,
+        total_amount:
+          +finalPurchases?.reduce((acc, po) => +acc + +po.total_amount, 0) || 0,
+      },
+    },
+  };
 }
 
 export async function getPurchaseReportCardsData(
@@ -438,101 +436,38 @@ export async function getPurchaseReportCardsData(
     activeBranchId = context.branchId || undefined;
   }
 
-  let query = supabase.from("purchase_orders").select(`
-    total_amount, 
-    created_at,
-    supplier_id,
-    supplier:suppliers(name),
-    purchase_order_items(id)
-  `);
-
-  if (context.isSuperAdmin) {
-    if (activeBranchId) {
-      query = query.eq("branch_id", activeBranchId);
-    } else if (activeOrgId) {
-      const { data: orgBranches } = await supabase
-        .from("branches")
-        .select("id")
-        .eq("organization_id", activeOrgId);
-      const branchIds = orgBranches?.map((b) => b.id) || [];
-      query = query.in("branch_id", branchIds);
-    }
-  } else {
-    query = applyBranchFilter(query, context);
-  }
-
-  if (filters.supplier_id) query = query.eq("supplier_id", filters.supplier_id);
-
-  const { data: purchases, error } = await query;
+  const { data: stats, error } = await supabase
+    .rpc("get_branch_purchase_stats", {
+      p_branch_id: activeBranchId,
+    })
+    .single();
 
   if (error) {
-    console.error("Purchase Report Cards Error:", error);
-    return { error: "Failed to fetch card data" };
+    console.error("Sales Stats Error:", error);
+    return { error: error.message };
   }
 
-  const supplierCounts: Record<string, { count: number; name: string }> = {};
-  let totalItemsCount = 0;
+  const topPurchaseSuppliers = supabase
+    .from("view_top_suppliers_by_purchases")
+    .select(`*`)
+    .limit(5)
+    .eq("branch_id", activeBranchId || null)
+    .eq("organization_id", activeOrgId || null);
 
-  const summary = purchases.reduce(
-    (acc, p) => {
-      // Top supplier tracking
-      const sName =
-        (Array.isArray(p.supplier) ? p.supplier[0] : p.supplier)?.name ||
-        "Unknown";
-      if (!supplierCounts[p.supplier_id]) {
-        supplierCounts[p.supplier_id] = { count: 0, name: sName };
-      }
-      supplierCounts[p.supplier_id].count++;
+  const { data: topPurchaseSuppliersData, error: topPurchaseSuppliersError } =
+    await topPurchaseSuppliers;
 
-      // Items count for average
-      totalItemsCount += p.purchase_order_items?.length || 0;
+  if (topPurchaseSuppliersError) {
+    console.error("Top Purchase Suppliers Error:", topPurchaseSuppliersError);
+    return { error: topPurchaseSuppliersError.message };
+  }
 
-      return {
-        totalPurchases: acc.totalPurchases + 1,
-        totalSpending: acc.totalSpending + Number(p.total_amount),
-      };
+  return {
+    data: {
+      ...(stats || {}),
+      topPurchaseSuppliers: topPurchaseSuppliersData || [],
     },
-    { totalPurchases: 0, totalSpending: 0 },
-  );
-
-  const supplierKeys = Object.keys(supplierCounts);
-  const topSupplierId =
-    supplierKeys.length > 0
-      ? supplierKeys.reduce((a, b) =>
-          supplierCounts[a].count > supplierCounts[b].count ? a : b,
-        )
-      : "";
-  const topSupplierName = topSupplierId
-    ? supplierCounts[topSupplierId].name
-    : "N/A";
-
-  const now = new Date();
-  const fifteenDaysAgo = subDays(now, 15);
-  const thirtyDaysAgo = subDays(now, 30);
-
-  const stats = {
-    today: purchases.filter((p) => isToday(parseISO(p.created_at))).length,
-    yesterday: purchases.filter((p) => isYesterday(parseISO(p.created_at)))
-      .length,
-    last15Days: purchases.filter((p) =>
-      isAfter(parseISO(p.created_at), fifteenDaysAgo),
-    ).length,
-    last30Days: purchases.filter((p) =>
-      isAfter(parseISO(p.created_at), thirtyDaysAgo),
-    ).length,
   };
-
-  const additionalMetrics = {
-    avgPurchaseValue:
-      summary.totalPurchases > 0
-        ? summary.totalSpending / summary.totalPurchases
-        : 0,
-    avgItemsPerInvoice:
-      summary.totalPurchases > 0 ? totalItemsCount / summary.totalPurchases : 0,
-    topSupplier: topSupplierName,
-  };
-
-  return { data: { summary, stats, additionalMetrics } };
 }
 
 export async function getStockReportAction(filters: StockReportFilters) {

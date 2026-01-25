@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useMemo, useState, Fragment, useTransition, useCallback } from "react"
+import { memo, useState, Fragment, useTransition, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -34,6 +34,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 
 import { initialPurchaseReportData } from "./constants"
+import LoadingIcon from "./LoadingIcon"
 
 interface PurchaseReportProps {
     suppliers: Supplier[]
@@ -43,7 +44,7 @@ const PurchaseReport = ({ suppliers }: PurchaseReportProps) => {
     const searchParams = useSearchParams()
     const [isLoading, startTransition] = useTransition();
 
-    const { formData, handleFieldChange, handleChange, resetForm } = useFormManager({
+    const { formData, handleFieldChange, handleChange, resetForm, handleChangeMultiInputs } = useFormManager({
         initialData: initialPurchaseReportData
     })
 
@@ -64,26 +65,11 @@ const PurchaseReport = ({ suppliers }: PurchaseReportProps) => {
                 resolveActionData(getPurchaseReportAction, searchParams, formData),
                 resolveActionData(getPurchaseReportCardsData, searchParams, formData)
             ]);
-
-            if (purchasesData) handleFieldChange({ name: "purchases", value: purchasesData });
-            if (cardsData) handleFieldChange({ name: "cardsData", value: cardsData });
+            console.log(cardsData)
+            if (purchasesData) handleChangeMultiInputs(purchasesData);
+            if (cardsData) handleChangeMultiInputs(cardsData);
         });
-    }, [formData, handleFieldChange, searchParams]);
-
-    const summary = useMemo(() => formData.purchases.reduce((acc, purchase) => ({
-        totalPurchases: acc.totalPurchases + 1,
-        totalSpending: acc.totalSpending + Number(purchase.total_amount),
-    }), { totalPurchases: 0, totalSpending: 0 })
-        , [formData.purchases])
-
-    const lastPurchasedItems = useMemo(() => {
-        return formData.purchases
-            .flatMap(purchase => purchase.items_data.map(item => ({
-                ...item,
-                created_at: purchase.created_at
-            })))
-            .slice(0, 5);
-    }, [formData.purchases]);
+    }, [formData, handleChangeMultiInputs, searchParams]);
 
     return (
         <div className="space-y-6">
@@ -151,86 +137,110 @@ const PurchaseReport = ({ suppliers }: PurchaseReportProps) => {
 
             {/* Task Cards Row */}
             <div className="grid gap-4 md:grid-cols-3">
-                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md overflow-hidden outline-1 outline-white/5">
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md flex flex-col h-full">
                     <CardHeader className="pb-2 border-b border-white/5">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
                             <Clock className="h-4 w-4 text-primary" />
                             Purchase Frequency
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <p className="text-[10px] text-muted-foreground uppercase">Today</p>
-                                <p className="text-xl font-bold">{formData.cardsData?.stats?.today || 0}</p>
+                    <CardContent className="pt-4 flex-1">
+                        {isLoading ?
+                            <LoadingIcon />
+                            :
+                            <div className="space-y-6 h-full flex flex-col justify-around">
+                                <div className="grid grid-cols-2 gap-4 border-b border-white/5 pb-4">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Today</p>
+                                        <p className="text-xl font-bold">{formData?.today_count || 0}</p>
+                                    </div>
+                                    <div className="space-y-1 text-right border-l border-white/5 pl-4">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Yesterday</p>
+                                        <p className="text-xl font-bold">{formData?.yesterday_count || 0}</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Last 15d</p>
+                                        <p className="text-xl font-bold">{formData?.last_15_days_count || 0}</p>
+                                    </div>
+                                    <div className="space-y-1 text-right border-l border-white/5 pl-4">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Last 30d</p>
+                                        <p className="text-xl font-bold">{formData?.last_30_days_count || 0}</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="space-y-1 text-right border-l border-white/5 pl-4">
-                                <p className="text-[10px] text-muted-foreground uppercase">Yesterday</p>
-                                <p className="text-xl font-bold">{formData.cardsData?.stats?.yesterday || 0}</p>
-                            </div>
-                            <div className="space-y-1 pt-2 border-t border-white/5">
-                                <p className="text-[10px] text-muted-foreground uppercase">Last 15d</p>
-                                <p className="text-xl font-bold">{formData.cardsData?.stats?.last15Days || 0}</p>
-                            </div>
-                            <div className="space-y-1 pt-2 text-right border-t border-l border-white/5 pl-4">
-                                <p className="text-[10px] text-muted-foreground uppercase">Last 30d</p>
-                                <p className="text-xl font-bold">{formData.cardsData?.stats?.last30Days || 0}</p>
-                            </div>
-                        </div>
+                        }
                     </CardContent>
                 </Card>
-                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md overflow-hidden outline-1 outline-white/5">
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md flex flex-col h-full">
                     <CardHeader className="pb-2 border-b border-white/5">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
                             <TrendingUp className="h-4 w-4 text-primary" />
                             Efficiency Insights
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <p className="text-[10px] text-muted-foreground uppercase">Avg. Value</p>
-                                <p className="text-xl font-bold text-primary">{formatEGP(formData.cardsData?.additionalMetrics?.avgPurchaseValue || 0)}</p>
+                    <CardContent className="pt-4 flex-1">
+                        {isLoading ?
+                            <LoadingIcon />
+                            :
+                            <div className="space-y-6 h-full flex flex-col justify-around">
+                                <div className="grid grid-cols-2 gap-4 border-b border-white/5 pb-4">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Avg. Value</p>
+                                        <p className="text-xl font-bold text-primary">{formatEGP(formData?.avg_purchase_value || 0)}</p>
+                                    </div>
+                                    <div className="space-y-1 text-right border-l border-white/5 pl-4">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Total Spending</p>
+                                        <p className="text-xl font-bold text-primary">{formatEGP(formData?.total_spending || 0)}</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-muted-foreground uppercase">Total Purchases</p>
+                                        <p className="text-xl font-bold text-primary">{formData?.total_purchases || 0}</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="space-y-1 text-right border-l border-white/5 pl-4">
-                                <p className="text-[10px] text-muted-foreground uppercase">Avg. Items</p>
-                                <p className="text-xl font-bold text-primary">{(formData.cardsData?.additionalMetrics?.avgItemsPerInvoice || 0).toFixed(1)}</p>
-                            </div>
-                            <div className="space-y-1 pt-2 border-t border-white/5 col-span-2">
-                                <p className="text-[10px] text-muted-foreground uppercase">Top Supplier</p>
-                                <p className="text-sm font-bold text-primary truncate max-w-full">{formData.cardsData?.additionalMetrics?.topSupplier || "N/A"}</p>
-                            </div>
-                        </div>
+                        }
                     </CardContent>
                 </Card>
-                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md overflow-hidden outline-1 outline-white/5">
+                <Card className="border-none shadow-sm shadow-black/5 bg-card/60 backdrop-blur-md gap-1">
                     <CardHeader className="pb-2 border-b border-white/5">
-                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <CardTitle className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
                             <Package className="h-4 w-4 text-primary" />
-                            Recent Items Purchased
+                            Top Customers Orders
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-2 px-3">
-                        <div className="space-y-1">
-                            {lastPurchasedItems.length > 0 ? (
-                                lastPurchasedItems.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center py-1.5 border-b border-white/5 last:border-0">
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="text-xs font-semibold truncate text-foreground/90">{item.products?.name}</span>
-                                            <span className="text-[9px] text-muted-foreground">{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <CardContent className="pt-2">
+                        {isLoading ?
+                            <div className="h-[160px]">
+                                <LoadingIcon />
+                            </div>
+                            :
+                            <div className="max-h-[160px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                                <div className="space-y-1">
+                                    {formData.topPurchaseSuppliers.length > 0 ? (
+                                        formData.topPurchaseSuppliers.map((item, idx) => (
+                                            <div key={idx} className="flex justify-between items-center py-1.5 border-b border-white/5 last:border-0">
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-xs font-semibold truncate text-foreground/90">{item.supplier_name}</span>
+                                                    <span className="text-[9px] text-muted-foreground">Total Invoices: {item.total_orders}</span>
+                                                </div>
+                                                <div className="text-right flex flex-col">
+                                                    <span className="text-[10px] font-bold text-primary">{formatEGP(item.total_spent)}</span>
+                                                    <span className="text-[9px] text-muted-foreground">{formatEGP(item.avg_order_value)}</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="py-8 text-center text-xs text-muted-foreground italic">
+                                            No items found.
                                         </div>
-                                        <div className="text-right flex flex-col">
-                                            <span className="text-[10px] font-bold text-primary">x{item.quantity}</span>
-                                            <span className="text-[9px] text-muted-foreground">{formatEGP(item.unit_price)}</span>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="py-8 text-center text-xs text-muted-foreground italic">
-                                    No items found.
+                                    )}
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        }
                     </CardContent>
                 </Card>
             </div>
@@ -243,7 +253,7 @@ const PurchaseReport = ({ suppliers }: PurchaseReportProps) => {
                         <ShoppingCart className="h-4 w-4 text-blue-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-blue-600">{summary.totalPurchases}</div>
+                        <div className="text-2xl font-bold text-blue-600">{formData.filterd_stats.total_purchases}</div>
                         <p className="text-xs text-muted-foreground mt-1">
                             Filtered purchase orders
                         </p>
@@ -255,7 +265,7 @@ const PurchaseReport = ({ suppliers }: PurchaseReportProps) => {
                         <DollarSign className="h-4 w-4 text-orange-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-orange-600">{formatEGP(summary.totalSpending)}</div>
+                        <div className="text-2xl font-bold text-orange-600">{formatEGP(formData.filterd_stats.total_amount)}</div>
                         <p className="text-xs text-muted-foreground mt-1">
                             Gross purchase value
                         </p>

@@ -20,19 +20,27 @@ export const initialStockReportData = {
 };
 
 export const initialPurchaseReportData = {
-  dateFrom: today,
-  dateTo: today,
+  dateFrom: "",
+  dateTo: "",
   supplier_id: "",
   purchases: [] as PurchaseOrder[],
-  cardsData: null as {
-    stats: Record<string, number>;
-    summary: { totalPurchases: number; totalSpending: number };
-    additionalMetrics: {
-      avgPurchaseValue: number;
-      avgItemsPerInvoice: number;
-      topSupplier: string;
-    };
-  } | null,
+  total_purchases: 0,
+  total_spending: 0,
+  avg_purchase_value: 0,
+  filterd_stats: {
+    total_purchases: 0,
+    total_amount: 0,
+  },
+  topPurchaseSuppliers: [] as {
+    supplier_name: string;
+    total_orders: number;
+    total_spent: number;
+    avg_order_value: number;
+  }[],
+  today_count: 0,
+  yesterday_count: 0,
+  last_15_days_count: 0,
+  last_30_days_count: 0,
 };
 
 export const initiaSalesReportData = {

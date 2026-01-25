@@ -216,15 +216,6 @@ export const SalesReportPDF = ({ data }: SalesReportPDFProps) => (
                             {formatEGP(data.filtered_stats?.total_profit || 0)}
                         </Text>
                     </View>
-
-                    <View style={{ ...styles.statCard, marginTop: 10 }}>
-                        <Text style={styles.statLabel}>Avg. Invoice Value</Text>
-                        <Text style={styles.statValue}>{formatEGP(data.avg_invoice_value || 0)}</Text>
-                    </View>
-                    <View style={{ ...styles.statCard, marginTop: 10 }}>
-                        <Text style={styles.statLabel}>Profit Margin</Text>
-                        <Text style={styles.statValue}>{(data.profit_margin_percent || 0).toFixed(1)}%</Text>
-                    </View>
                 </View>
             </View>}
 
