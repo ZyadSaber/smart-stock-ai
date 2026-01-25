@@ -114,7 +114,7 @@ const SalesReport = ({ customers }: SalesReportProps) => {
                             placeholder="All Customers"
                             showSearch
                         />
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                             <Button
                                 className="flex-2 bg-primary hover:bg-primary/90"
                                 onClick={handleSearch}

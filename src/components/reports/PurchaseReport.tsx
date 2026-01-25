@@ -35,6 +35,12 @@ import { Badge } from "@/components/ui/badge"
 
 import { initialPurchaseReportData } from "./constants"
 import LoadingIcon from "./LoadingIcon"
+import dynamic from "next/dynamic";
+
+const PurchasePDFButton = dynamic(() => import("./PurchasePDFButton"), {
+    ssr: false,
+    loading: () => <Button disabled variant="outline" className="flex-1"><Loader2 className="animate-spin h-4 w-4" /></Button>
+});
 
 interface PurchaseReportProps {
     suppliers: Supplier[]
@@ -107,7 +113,7 @@ const PurchaseReport = ({ suppliers }: PurchaseReportProps) => {
                             placeholder="All Suppliers"
                             showSearch
                         />
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                             <Button
                                 className="flex-2 bg-primary hover:bg-primary/90"
                                 onClick={handleSearch}
@@ -130,6 +136,7 @@ const PurchaseReport = ({ suppliers }: PurchaseReportProps) => {
                                 <RotateCcw className="h-4 w-4 md:mr-2" />
                                 <span className="hidden md:inline">Clear</span>
                             </Button>
+                            <PurchasePDFButton data={formData} isLoading={isLoading} />
                         </div>
                     </div>
                 </CardContent>
