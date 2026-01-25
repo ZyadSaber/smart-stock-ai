@@ -9,13 +9,28 @@ import {
   applyBranchFilter,
   applyOrganizationFilter,
 } from "@/lib/tenant";
-import { Sale } from "@/types/sales";
+import { Sale, SaleProduct, Warehouse, Customers } from "@/types/sales";
 
 export async function getSalesPageData(
-  searchParams: { organization_id?: string; branch_id?: string } = {}
-) {
+  searchParams: {
+    organization_id?: string;
+    branch_id?: string;
+    date_from?: string;
+    date_to?: string;
+    customer_id?: string;
+    notes?: string;
+  } = {},
+): Promise<{
+  data?: {
+    sales: Sale[];
+    products: SaleProduct[];
+    warehouses: Warehouse[];
+    customers: Customers[];
+  };
+  error?: string;
+}> {
   const context = await getTenantContext();
-  if (!context) return null;
+  if (!context) return { error: "Unauthorized" };
 
   const supabase = await createClient();
 
@@ -68,7 +83,7 @@ export async function getSalesPageData(
               name
             )
           )
-      `
+      `,
   );
 
   if (context.isSuperAdmin) {
@@ -84,6 +99,21 @@ export async function getSalesPageData(
     }
   } else {
     salesQuery = applyBranchFilter(salesQuery, context);
+  }
+
+  if (searchParams.date_from) {
+    salesQuery = salesQuery.gte("created_at", searchParams.date_from);
+  }
+  if (searchParams.date_to) {
+    const endDate = new Date(searchParams.date_to);
+    endDate.setHours(23, 59, 59, 999);
+    salesQuery = salesQuery.lte("created_at", endDate.toISOString());
+  }
+  if (searchParams.customer_id && searchParams.customer_id !== "all") {
+    salesQuery = salesQuery.eq("customer_id", searchParams.customer_id);
+  }
+  if (searchParams.notes) {
+    salesQuery = salesQuery.ilike("notes", `%${searchParams.notes}%`);
   }
 
   const { data: sales } = await salesQuery.order("created_at", {
@@ -174,10 +204,12 @@ export async function getSalesPageData(
   const { data: customers } = await customersQuery;
 
   return {
-    sales: finalSales || [],
-    products: products || [],
-    warehouses: warehouses || [],
-    customers: customers || [],
+    data: {
+      sales: finalSales || [],
+      products: products || [],
+      warehouses: warehouses || [],
+      customers: customers || [],
+    },
   };
 }
 
@@ -321,7 +353,7 @@ export async function deleteSaleAction(id: string) {
 }
 
 export async function getTopSellingProducts(
-  searchParams: { organization_id?: string; branch_id?: string } = {}
+  searchParams: { organization_id?: string; branch_id?: string } = {},
 ) {
   const context = await getTenantContext();
   if (!context) return [];
@@ -346,7 +378,7 @@ export async function getTopSellingProducts(
       quantity,
       products ( name ),
       sales!inner ( branch_id )
-    `
+    `,
   );
 
   if (context.isSuperAdmin) {
@@ -454,7 +486,7 @@ export async function getTopSellingProducts(
 // }
 
 export async function getSales(
-  searchParams: { organization_id?: string; branch_id?: string } = {}
+  searchParams: { organization_id?: string; branch_id?: string } = {},
 ): Promise<Sale[]> {
   const context = await getTenantContext();
   if (!context) return [];
@@ -483,7 +515,7 @@ export async function getSales(
       created_at,
       user_id,
       profiles:profiles!sales_user_id_fkey (full_name)
-    `
+    `,
   );
 
   if (context.isSuperAdmin) {

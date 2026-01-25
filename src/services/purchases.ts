@@ -12,12 +12,33 @@ import {
   purchaseOrderSchema,
   type PurchaseOrderFormInput,
 } from "@/lib/validations/purchase-order";
+import {
+  PurchaseOrder,
+  PurchaseProduct,
+  Warehouse,
+  Supplier,
+} from "@/types/purchases";
 
 export async function getPurchasesPageData(
-  searchParams: { organization_id?: string; branch_id?: string } = {}
-) {
+  searchParams: {
+    organization_id?: string;
+    branch_id?: string;
+    date_from?: string;
+    date_to?: string;
+    supplier_id?: string;
+    notes?: string;
+  } = {},
+): Promise<{
+  data?: {
+    purchaseOrders: PurchaseOrder[];
+    products: PurchaseProduct[];
+    warehouses: Warehouse[];
+    suppliers: Supplier[];
+  };
+  error?: string;
+}> {
   const context = await getTenantContext();
-  if (!context) return null;
+  if (!context) return { error: "Unauthorized" };
 
   const supabase = await createClient();
 
@@ -60,7 +81,7 @@ export async function getPurchasesPageData(
         name
       )
     )
-  `
+  `,
     )
     .order("created_at", { ascending: false });
 
@@ -77,6 +98,21 @@ export async function getPurchasesPageData(
     }
   } else {
     purchasesQuery = applyBranchFilter(purchasesQuery, context);
+  }
+
+  if (searchParams.date_from) {
+    purchasesQuery = purchasesQuery.gte("created_at", searchParams.date_from);
+  }
+  if (searchParams.date_to) {
+    const endDate = new Date(searchParams.date_to);
+    endDate.setHours(23, 59, 59, 999);
+    purchasesQuery = purchasesQuery.lte("created_at", endDate.toISOString());
+  }
+  if (searchParams.supplier_id && searchParams.supplier_id !== "all") {
+    purchasesQuery = purchasesQuery.eq("supplier_id", searchParams.supplier_id);
+  }
+  if (searchParams.notes) {
+    purchasesQuery = purchasesQuery.ilike("notes", `%${searchParams.notes}%`);
   }
 
   const { data: purchaseOrders } = await purchasesQuery.order("created_at", {
@@ -151,15 +187,17 @@ export async function getPurchasesPageData(
   const { data: suppliers } = await suppliersQuery;
 
   return {
-    purchaseOrders: finalPurchaseOrders || [],
-    products: products || [],
-    warehouses: warehouses || [],
-    suppliers: suppliers || [],
+    data: {
+      purchaseOrders: finalPurchaseOrders || [],
+      products: products || [],
+      warehouses: warehouses || [],
+      suppliers: suppliers || [],
+    },
   };
 }
 
 export async function createPurchaseOrderAction(
-  values: PurchaseOrderFormInput
+  values: PurchaseOrderFormInput,
 ) {
   const context = await getTenantContext();
   if (!context) return { error: "Unauthorized" };
@@ -175,7 +213,7 @@ export async function createPurchaseOrderAction(
   // Calculate total amount
   const totalAmount = validatedFields.data.items_data.reduce(
     (sum, item) => sum + item.quantity * item.unit_price,
-    0
+    0,
   );
 
   // Create purchase order
@@ -227,7 +265,7 @@ export async function createPurchaseOrderAction(
 
 export async function updatePurchaseOrderAction(
   id: string,
-  values: PurchaseOrderFormInput
+  values: PurchaseOrderFormInput,
 ) {
   const context = await getTenantContext();
   if (!context) return { error: "Unauthorized" };
@@ -243,7 +281,7 @@ export async function updatePurchaseOrderAction(
   // Calculate total amount
   const totalAmount = validatedFields.data.items_data.reduce(
     (sum, item) => sum + item.quantity * item.unit_price,
-    0
+    0,
   );
 
   // Update purchase order

@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowRightLeft, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useTransition, useState, useEffect } from "react";
-import { createStockMovementAction, updateStockMovementAction } from "@/app/(dashboard)/stock-movements/actions";
+import { createStockMovementAction, updateStockMovementAction } from "@/services/stock-movements";
 
 interface Product {
     id: string;

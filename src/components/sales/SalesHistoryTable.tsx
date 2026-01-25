@@ -41,7 +41,7 @@ export function SalesHistoryTable({
                         <TableHead>Date & Time</TableHead>
                         <TableHead>Customer</TableHead>
                         <TableHead>Total Amount</TableHead>
-                        <TableHead>Profit</TableHead>
+                        <TableHead>Notes</TableHead>
                         <TableHead>Seller Name</TableHead>
                         <TableHead className="w-[120px]">Actions</TableHead>
                     </TableRow>
@@ -49,7 +49,7 @@ export function SalesHistoryTable({
                 <TableBody>
                     {initialSales.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                            <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                                 No sales recorded yet.
                             </TableCell>
                         </TableRow>
@@ -82,8 +82,8 @@ export function SalesHistoryTable({
                                             {formatEGP(Number(sale.total_amount))}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-green-600 font-medium whitespace-nowrap">
-                                        {formatEGP(Number(sale.profit_amount))}
+                                    <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                                        <span title={sale.notes || '-'}>{sale.notes || '-'}</span>
                                     </TableCell>
                                     <TableCell className="text-sm">
                                         {sale.created_by_user || 'Unknown'}
@@ -103,7 +103,7 @@ export function SalesHistoryTable({
                                 </TableRow>
                                 {expandedRows[sale.id] && (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="p-0 border-b">
+                                        <TableCell colSpan={7} className="p-0 border-b">
                                             <SalesItemsTable items={sale.items_data} saleId={sale.id} />
                                             {sale.notes && (
                                                 <div className="px-14 py-3 text-sm text-muted-foreground italic border-t bg-muted/10">

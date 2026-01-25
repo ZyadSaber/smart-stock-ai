@@ -218,7 +218,7 @@ export const StockReportPDF = ({ data }: StockReportPDFProps) => {
                                                 backgroundColor: chartColors[idx % chartColors.length]
                                             }
                                         ]} />
-                                        <Text style={styles.barLabel} numberOfLines={1}>{stat.name}</Text>
+                                        <Text style={styles.barLabel}>{stat.name}</Text>
                                     </View>
                                 );
                             })}

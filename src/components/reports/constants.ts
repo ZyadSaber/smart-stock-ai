@@ -69,3 +69,25 @@ export const initiaSalesReportData = {
     total_profit: number;
   }[],
 };
+
+export const initialStockMovementsData = {
+  date_from: "",
+  date_to: "",
+  movements: [] as StockMovement[],
+  products: [] as { id: string; name: string }[],
+  warehouses: [] as { id: string; name: string }[],
+};
+
+export const initialPurchasesData = {
+  date_from: "",
+  date_to: "",
+  supplier_id: "",
+  notes: "",
+};
+
+export const initialSalesData = {
+  date_from: "",
+  date_to: "",
+  customer_id: "",
+  notes: "",
+};

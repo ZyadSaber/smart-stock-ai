@@ -12,7 +12,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { Trash2 } from "lucide-react";
-import { deleteStockMovementAction } from "@/app/(dashboard)/stock-movements/actions";
+import { deleteStockMovementAction } from "@/services/stock-movements";
 import { toast } from "sonner";
 
 interface DeleteMovementDialogProps {

@@ -1,7 +1,7 @@
 import { getDashboardStats } from '@/services/dashboard';
 import { getSales, getTopSellingProducts } from "@/services/sales";
 import { getAllWarehousesValuation } from "@/app/(dashboard)/warehouses/actions";
-import { getStockFlowData } from "@/app/(dashboard)/stock-movements/actions";
+import { getStockFlowData } from "@/services/stock-movements";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SalesProfitChart } from "@/components/dashboard/sales-profit-chart";
 import { WarehouseValuationChart } from "@/components/dashboard/warehouse-valuation-chart";

@@ -1,129 +1,27 @@
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { StockMovementDialog } from "@/components/stock-movements/stock-movement-dialog";
-import { DeleteMovementDialog } from "@/components/stock-movements/delete-movement-dialog";
-import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Package } from "lucide-react";
 import { getStockMovementsPageData } from "@/services/stock-movements";
 import { resolvePageData } from "@/lib/page-utils";
+import { StockMovementsView } from "@/components/stock-movements/StockMovementsView";
 
 interface StockMovementsPageProps {
     searchParams: Promise<{ organization_id?: string; branch_id?: string }>;
 }
 
 export default async function StockMovementsPage({ searchParams }: StockMovementsPageProps) {
-    const { movements, products, warehouses } = await resolvePageData(searchParams, getStockMovementsPageData);
+    const result = await resolvePageData(searchParams, getStockMovementsPageData);
 
+    if (result.error || !result.data) {
+        return <div className="p-8 text-red-500">Error: {result.error || "Failed to load data"}</div>
+    }
+
+    const { movements, products, warehouses } = result.data;
 
     return (
-        <div className="p-8 space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Stock Movements</h1>
-                    <p className="text-muted-foreground">Track stock transfers between warehouses.</p>
-                </div>
-                <StockMovementDialog
-                    products={products}
-                    warehouses={warehouses}
-                />
-            </div>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Movement History</CardTitle>
-                    <CardDescription>
-                        All stock transfers and movements are recorded here.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date & Time</TableHead>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead>From</TableHead>
-                                    <TableHead className="w-12"></TableHead>
-                                    <TableHead>To</TableHead>
-                                    <TableHead>Quantity</TableHead>
-                                    <TableHead>Notes</TableHead>
-                                    <TableHead>By</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {movements.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                                            No stock movements recorded yet.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    movements.map((movement: any) => (
-                                        <TableRow key={movement.id}>
-                                            <TableCell className="font-mono text-xs text-nowrap">
-                                                {new Date(movement.created_at).toLocaleString()}
-                                            </TableCell>
-                                            <TableCell className="font-medium">
-                                                <div className="flex items-center gap-2">
-                                                    <Package className="h-4 w-4 text-muted-foreground" />
-                                                    {movement.products?.name || 'Unknown'}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline">
-                                                    {movement.from_warehouse?.name || 'New Stock'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline">
-                                                    {movement.to_warehouse?.name || 'Removed'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge>{movement.quantity}</Badge>
-                                            </TableCell>
-                                            <TableCell className="text-sm text-muted-foreground">
-                                                {movement.notes || '-'}
-                                            </TableCell>
-                                            <TableCell className="text-sm">
-                                                {movement.created_by_user?.full_name || 'Unknown'}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <StockMovementDialog
-                                                        products={products}
-                                                        warehouses={warehouses}
-                                                        movement={{
-                                                            id: movement.id,
-                                                            product_id: movement.product_id,
-                                                            from_warehouse_id: movement.from_warehouse_id,
-                                                            to_warehouse_id: movement.to_warehouse_id,
-                                                            quantity: movement.quantity,
-                                                            notes: movement.notes
-                                                        }}
-                                                    />
-                                                    <DeleteMovementDialog movementId={movement.id} />
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
+        <div className="p-8">
+            <StockMovementsView
+                initialMovements={movements}
+                products={products}
+                warehouses={warehouses}
+            />
         </div>
     );
 }
