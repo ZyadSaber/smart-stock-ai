@@ -40,6 +40,8 @@ export function SalesProfitChart({ sales }: SalesProfitChartProps) {
         return Object.values(grouped).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [sales]);
 
+    console.log(chartData)
+
     if (sales.length === 0) {
         return (
             <Card className="col-span-4">

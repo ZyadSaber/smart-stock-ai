@@ -18,7 +18,7 @@ export default async function DashboardPage({
 
     const filters = await searchParams;
     const stats = await getDashboardStats(filters);
-    const sales = await getSales(filters);
+    const sales = await getSales(filters)
     const warehouseValuations = await getAllWarehousesValuation(filters);
     const topProducts = await getTopSellingProducts(filters);
     const stockFlow = await getStockFlowData(filters);

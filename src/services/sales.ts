@@ -430,61 +430,6 @@ export async function getTopSellingProducts(
     .slice(0, 5); // Return top 5
 }
 
-// export async function getSaleForInvoice(saleId: string) {
-//   const context = await getTenantContext();
-//   if (!context) return null;
-
-//   const supabase = await createClient();
-
-//   let saleQuery = supabase
-//     .from("sales")
-//     .select(
-//       `
-//       *,
-//       profiles:profiles!sales_user_id_fkey (full_name)
-//     `
-//     )
-//     .eq("id", saleId);
-
-//   saleQuery = applyBranchFilter(saleQuery, context);
-
-//   const { data: sale, error: saleError } = await saleQuery.single();
-
-//   if (saleError || !sale) {
-//     console.error(saleError);
-//     return null;
-//   }
-
-//   const { data: items, error: itemsError } = await supabase
-//     .from("sale_items")
-//     .select(
-//       `
-//       *,
-//       products (name, barcode)
-//     `
-//     )
-//     .eq("sale_id", saleId);
-
-//   if (itemsError) {
-//     console.error(itemsError);
-//     return null;
-//   }
-
-//   return {
-//     ...sale,
-//     seller_name:
-//       (sale.profiles as unknown as { full_name: string | null })?.full_name ||
-//       "System",
-//     items: (items as unknown as Record<string, unknown>[]).map((item) => ({
-//       ...item,
-//       product_name:
-//         (item.products as unknown as { name: string })?.name || "Product",
-//       barcode: (item.products as unknown as { barcode: string | null })
-//         ?.barcode,
-//     })),
-//   };
-// }
-
 export async function getSales(
   searchParams: { organization_id?: string; branch_id?: string } = {},
 ): Promise<Sale[]> {
@@ -508,7 +453,7 @@ export async function getSales(
   let query = supabase.from("sales").select(
     `
       id,
-      customer_name,
+      customer_id,
       notes,
       total_amount,
       profit_amount,

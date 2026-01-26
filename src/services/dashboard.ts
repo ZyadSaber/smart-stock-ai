@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import { getTenantContext, applyBranchFilter } from "@/lib/tenant";
+import { getTenantContext, applyOrganizationFilter } from "@/lib/tenant";
 
 export interface DashboardStats {
   total_cost: number;
@@ -10,8 +10,8 @@ export interface DashboardStats {
 }
 
 export async function getDashboardStats(
-  searchParams: { organization_id?: string; branch_id?: string } = {}
-): Promise<DashboardStats> {
+  searchParams: { organization_id?: string; branch_id?: string } = {},
+) {
   const context = await getTenantContext();
   if (!context) {
     return {
@@ -38,27 +38,19 @@ export async function getDashboardStats(
   }
 
   // Calculate stats from product_stocks and products
-  let stocksQuery = supabase.from("product_stocks").select(`
-      quantity,
-      products (
-        cost_price,
-        selling_price
-      )
-    `);
+  let stocksQuery = supabase.from("warehouse_stock_summary").select("*");
 
   if (context.isSuperAdmin) {
     if (activeBranchId) {
       stocksQuery = stocksQuery.eq("branch_id", activeBranchId);
     } else if (activeOrgId) {
-      const { data: orgBranches } = await supabase
-        .from("branches")
-        .select("id")
-        .eq("organization_id", activeOrgId);
-      const branchIds = orgBranches?.map((b) => b.id) || [];
-      stocksQuery = stocksQuery.in("branch_id", branchIds);
+      stocksQuery = stocksQuery.eq("organization_id", activeOrgId);
     }
   } else {
-    stocksQuery = applyBranchFilter(stocksQuery, context);
+    stocksQuery = applyOrganizationFilter(stocksQuery, context);
+    stocksQuery = stocksQuery.or(
+      `branch_id.is.null,branch_id.eq.${context.branchId}`,
+    );
   }
 
   const { data, error } = await stocksQuery;
@@ -74,88 +66,26 @@ export async function getDashboardStats(
     };
   }
 
-  let total_cost = 0;
-  let total_revenue = 0;
-
-  data.forEach((item) => {
-    const qty = item.quantity || 0;
-
-    // Type casting for joined data
-    const product = (
-      Array.isArray(item.products) ? item.products[0] : item.products
-    ) as { cost_price: number; selling_price: number } | null;
-
-    const cost = product?.cost_price || 0;
-    const price = product?.selling_price || 0;
-
-    total_cost += qty * cost;
-    total_revenue += qty * price;
-  });
-
-  // Calculate Low Stock Alerts (< 5 items)
-  let lowStockQuery = supabase
-    .from("product_stocks")
-    .select("*", { count: "exact", head: true })
-    .lt("quantity", 5);
-
-  if (context.isSuperAdmin) {
-    if (activeBranchId) {
-      lowStockQuery = lowStockQuery.eq("branch_id", activeBranchId);
-    } else if (activeOrgId) {
-      const { data: orgBranches } = await supabase
-        .from("branches")
-        .select("id")
-        .eq("organization_id", activeOrgId);
-      const branchIds = orgBranches?.map((b) => b.id) || [];
-      lowStockQuery = lowStockQuery.in("branch_id", branchIds);
-    }
-  } else {
-    lowStockQuery = applyBranchFilter(lowStockQuery, context);
-  }
-
-  const { count: lowStockCount, error: lowStockError } = await lowStockQuery;
-
-  if (lowStockError) {
-    console.error("Error fetching low stock count:", lowStockError);
-  }
-
-  // Calculate Today's Profit
-  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-  let salesQuery = supabase
-    .from("sales")
-    .select("profit_amount")
-    .gte("created_at", `${today}T00:00:00.000Z`)
-    .lte("created_at", `${today}T23:59:59.999Z`);
-
-  if (context.isSuperAdmin) {
-    if (activeBranchId) {
-      salesQuery = salesQuery.eq("branch_id", activeBranchId);
-    } else if (activeOrgId) {
-      const { data: orgBranches } = await supabase
-        .from("branches")
-        .select("id")
-        .eq("organization_id", activeOrgId);
-      const branchIds = orgBranches?.map((b) => b.id) || [];
-      salesQuery = salesQuery.in("branch_id", branchIds);
-    }
-  } else {
-    salesQuery = applyBranchFilter(salesQuery, context);
-  }
-
-  const { data: todaysSales, error: salesError } = await salesQuery;
-
-  let todaysProfit = 0;
-  if (!salesError && todaysSales) {
-    todaysSales.forEach((sale) => {
-      todaysProfit += Number(sale.profit_amount) || 0;
-    });
-  }
-
   return {
-    total_cost,
-    total_revenue,
-    projected_profit: total_revenue - total_cost,
-    low_stock_count: lowStockCount || 0,
-    todays_profit: todaysProfit,
+    total_cost: data.reduce(
+      (sum: number, po) => sum + parseFloat(po.total_stock_valuation || "0"),
+      0,
+    ),
+    total_revenue: data.reduce(
+      (sum: number, po) => sum + parseFloat(po.total_selling_value || "0"),
+      0,
+    ),
+    projected_profit: data.reduce(
+      (sum: number, po) => sum + parseFloat(po.selling_potential || "0"),
+      0,
+    ),
+    low_stock_count: data.reduce(
+      (sum: number, po) => sum + parseFloat(po.low_stock_count || "0"),
+      0,
+    ),
+    todays_profit: data.reduce(
+      (sum: number, po) => sum + parseFloat(po.todays_actual_margin || "0"),
+      0,
+    ),
   };
 }
