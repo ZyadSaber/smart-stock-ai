@@ -49,6 +49,49 @@ Built-in safety checks prevent:
 
 ---
 
+## 📂 Project Structure & Module Purposes
+
+The project is organized into modular directories to ensure scalability and maintainability.
+
+### 📁 `src/app` (Routes & Pages)
+
+- **`(auth)`**: Handles Authentication flows (Login, Register).
+- **`(dashboard)`**: The core application shell containing:
+  - `sales/`: POS system and sales history.
+  - `inventory/`: Product management and stock tracking.
+  - `purchases/`: Supplier order management.
+  - `reports/`: Advanced analytics and business intelligence.
+  - `stock-movements/`: Internal warehouse transfers.
+  - `warehouses/`: Multi-location storage management.
+
+### 📁 `src/services` (Business Logic & Data Access)
+
+Extremely critical layer where all database interactions are defined using Server Actions.
+
+- **`sales.ts`**: Complex logic for creating sales, calculating totals, and handling real-time stock deductions.
+- **`purchases.ts`**: Processes supplier orders and updates warehouse stocks upon receipt.
+- **`reports.ts`**: Aggregates data for charts, profit/loss statements, and inventory valuation.
+- **`stock-movements.ts`**: Ensures atomic transfers between warehouses with full audit logs.
+- **`inventory.ts`**: CRUD operations for products, categories, and brands.
+
+### 📁 `src/components` (UI Tier)
+
+- **`ui/`**: Low-level design system components (Button, Input, Card) built with Shadcn.
+- **`shared/`**: Higher-level reusable patterns like `DataTable` and `SearchField`.
+- **Module-specific Components**: (e.g., `src/components/sales/SaleForm.tsx`) encapsulate logic for specific features.
+
+### 📁 `src/hooks` & `src/types`
+
+- **`hooks/`**: Custom React hooks like `useNotificationsRealtime` for live updates and `useUser` for session management.
+- **`types/`**: Strict TypeScript definitions for all database entities, ensuring type safety across the entire application.
+
+### ⚙️ Core Logic & Infrastructure
+
+- **`src/proxy.ts`**: Centralized middleware logic that handles route protection and permission-based access control.
+- **`database/`**: Contains `production_schema.sql` and `triggers/`, defining the core business rules at the database level.
+
+---
+
 ## 🔄 Data Architecture & Flow
 
 SmartStock AI uses a centralized **PostgreSQL** database where logic is enforced at the data layer for maximum reliability.
